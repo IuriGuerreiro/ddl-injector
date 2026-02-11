@@ -12,14 +12,10 @@ pub enum ProcessError {
     EnumerationFailed(#[source] std::io::Error),
 
     #[error("Process not found: {0}")]
-    ProcessNotFound(String),
+    ProcessNotFound(u32),
 
-    #[error("Failed to open process with PID {pid}")]
-    OpenProcessFailed {
-        pid: u32,
-        #[source]
-        source: std::io::Error,
-    },
+    #[error("Failed to open process handle")]
+    OpenProcessFailed(#[source] std::io::Error),
 
     #[error("Invalid process handle")]
     InvalidHandle,
