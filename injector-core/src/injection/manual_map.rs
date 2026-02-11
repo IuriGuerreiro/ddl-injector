@@ -1,0 +1,1 @@
+// Manual mapping injection method
