@@ -4,11 +4,6 @@ use crate::error::ProcessError;
 use std::fmt;
 use std::path::PathBuf;
 use windows::Win32::System::Diagnostics::ToolHelp::PROCESSENTRY32W;
-use windows::Win32::System::Threading::{
-    OpenProcess, QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
-};
-use windows::Win32::Foundation::CloseHandle;
-use windows::core::PWSTR;
 
 /// Information about a process
 #[derive(Debug, Clone)]
@@ -49,46 +44,38 @@ impl ProcessInfo {
 
     /// Attempts to retrieve the full executable path for this process
     /// Returns Ok(None) for protected processes without access
-    pub fn try_get_path(&mut self) -> Result<(), ProcessError> {
+    pub fn try_get_path(&mut self) -> Result<Option<PathBuf>, ProcessError> {
+        use windows::Win32::System::Threading::{
+            QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+        use windows::core::PWSTR;
+        use crate::process::ProcessHandle;
+
+        // Try to open process with limited query permission
+        let handle = match ProcessHandle::open(self.pid, PROCESS_QUERY_LIMITED_INFORMATION) {
+            Ok(h) => h,
+            Err(_) => return Ok(None),
+        };
+
         unsafe {
-            // Open process with limited query permission
-            let handle = OpenProcess(
-                PROCESS_QUERY_LIMITED_INFORMATION,
-                false,
-                self.pid,
+            // Query the full path
+            let mut buffer = [0u16; 260]; // MAX_PATH
+            let mut size = buffer.len() as u32;
+
+            let result = QueryFullProcessImageNameW(
+                handle.as_handle(),
+                Default::default(),
+                PWSTR(buffer.as_mut_ptr()),
+                &mut size,
             );
 
-            match handle {
-                Ok(h) if h.is_invalid() => {
-                    // Can't access this process, leave path as None
-                    Ok(())
-                }
-                Err(_) => {
-                    // Can't access this process, leave path as None
-                    Ok(())
-                }
-                Ok(h) => {
-                    // Query the full path
-                    let mut buffer = [0u16; 260]; // MAX_PATH
-                    let mut size = buffer.len() as u32;
-
-                    let result = QueryFullProcessImageNameW(
-                        h,
-                        Default::default(),
-                        PWSTR(buffer.as_mut_ptr()),
-                        &mut size,
-                    );
-
-                    // Always close the handle
-                    let _ = CloseHandle(h);
-
-                    if result.is_ok() && size > 0 {
-                        let path_str = String::from_utf16_lossy(&buffer[..size as usize]);
-                        self.path = Some(PathBuf::from(path_str));
-                    }
-
-                    Ok(())
-                }
+            if result.is_ok() && size > 0 {
+                let path_str = String::from_utf16_lossy(&buffer[..size as usize]);
+                let path = PathBuf::from(path_str);
+                self.path = Some(path.clone());
+                Ok(Some(path))
+            } else {
+                Ok(None)
             }
         }
     }

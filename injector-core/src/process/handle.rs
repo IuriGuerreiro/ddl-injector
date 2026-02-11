@@ -1,7 +1,6 @@
 // Process handle management
 
 use crate::error::ProcessError;
-use std::marker::PhantomData;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 
@@ -9,14 +8,13 @@ use windows::Win32::System::Threading::{OpenProcess, PROCESS_ACCESS_RIGHTS};
 ///
 /// This struct provides RAII (Resource Acquisition Is Initialization) semantics
 /// for Windows process handles, ensuring they are automatically closed when dropped.
-///
-/// The handle is marked as !Send and !Sync to prevent unsafe threading behavior,
-/// as Windows HANDLEs should not be transferred between threads without proper synchronization.
 pub struct ProcessHandle {
     handle: HANDLE,
-    // PhantomData to make the type !Send and !Sync
-    _marker: PhantomData<*const ()>,
+    pid: u32,
 }
+
+// Process handles can be safely moved between threads
+unsafe impl Send for ProcessHandle {}
 
 impl ProcessHandle {
     /// Opens a process with the specified access rights
@@ -50,13 +48,18 @@ impl ProcessHandle {
                 }
                 Ok(h) => Ok(Self {
                     handle: h,
-                    _marker: PhantomData,
+                    pid,
                 }),
                 Err(_) => Err(ProcessError::OpenProcessFailed(
                     std::io::Error::last_os_error(),
                 )),
             }
         }
+    }
+
+    /// Returns the process ID associated with this handle
+    pub fn pid(&self) -> u32 {
+        self.pid
     }
 
     /// Returns the raw Windows handle
@@ -90,18 +93,17 @@ impl Drop for ProcessHandle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use windows::Win32::System::Threading::{
-        GetCurrentProcessId, PROCESS_QUERY_INFORMATION,
-    };
+    use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
 
     #[test]
     fn test_open_current_process() {
-        let pid = unsafe { GetCurrentProcessId() };
+        let pid = std::process::id();
         let handle = ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION);
 
         assert!(handle.is_ok(), "Should be able to open current process");
         let handle = handle.unwrap();
         assert!(handle.is_valid(), "Handle should be valid");
+        assert_eq!(handle.pid(), pid, "PID should match");
     }
 
     #[test]
@@ -120,7 +122,7 @@ mod tests {
 
     #[test]
     fn test_is_valid() {
-        let pid = unsafe { GetCurrentProcessId() };
+        let pid = std::process::id();
         let handle = ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION).unwrap();
 
         assert!(handle.is_valid(), "Valid handle should report as valid");
@@ -128,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_multiple_opens() {
-        let pid = unsafe { GetCurrentProcessId() };
+        let pid = std::process::id();
 
         // Open the same process twice
         let handle1 = ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION);
@@ -162,7 +164,7 @@ mod tests {
 
     #[test]
     fn test_drop_cleanup() {
-        let pid = unsafe { GetCurrentProcessId() };
+        let pid = std::process::id();
 
         // Create a handle in a scope so it gets dropped
         {
