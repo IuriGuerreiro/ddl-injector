@@ -21,12 +21,14 @@ impl ProcessEnumerator {
     ///
     /// # Example
     /// ```no_run
-    /// use injector_core::process::ProcessEnumerator;
-    ///
+    /// # use injector_core::process::ProcessEnumerator;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let processes = ProcessEnumerator::enumerate()?;
     /// for process in processes {
     ///     println!("{}", process);
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn enumerate() -> Result<Vec<ProcessInfo>, ProcessError> {
         unsafe {
@@ -81,10 +83,12 @@ impl ProcessEnumerator {
     ///
     /// # Example
     /// ```no_run
-    /// use injector_core::process::ProcessEnumerator;
-    ///
+    /// # use injector_core::process::ProcessEnumerator;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let process = ProcessEnumerator::find_by_pid(1234)?;
     /// println!("Found: {}", process);
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn find_by_pid(pid: u32) -> Result<ProcessInfo, ProcessError> {
         let processes = Self::enumerate()?;
@@ -106,12 +110,14 @@ impl ProcessEnumerator {
     ///
     /// # Example
     /// ```no_run
-    /// use injector_core::process::ProcessEnumerator;
-    ///
+    /// # use injector_core::process::ProcessEnumerator;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let processes = ProcessEnumerator::find_by_name("notepad")?;
     /// for process in processes {
     ///     println!("Found: {}", process);
     /// }
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn find_by_name(name: &str) -> Result<Vec<ProcessInfo>, ProcessError> {
         let processes = Self::enumerate()?;

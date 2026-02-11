@@ -61,11 +61,11 @@ impl ProcessInfo {
             match handle {
                 Ok(h) if h.is_invalid() => {
                     // Can't access this process, leave path as None
-                    return Ok(());
+                    Ok(())
                 }
                 Err(_) => {
                     // Can't access this process, leave path as None
-                    return Ok(());
+                    Ok(())
                 }
                 Ok(h) => {
                     // Query the full path

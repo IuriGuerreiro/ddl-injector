@@ -31,10 +31,12 @@ impl ProcessHandle {
     ///
     /// # Example
     /// ```no_run
-    /// use injector_core::process::ProcessHandle;
-    /// use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
-    ///
+    /// # use injector_core::process::ProcessHandle;
+    /// # use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let handle = ProcessHandle::open(1234, PROCESS_QUERY_INFORMATION)?;
+    /// # Ok(())
+    /// # }
     /// ```
     pub fn open(pid: u32, rights: PROCESS_ACCESS_RIGHTS) -> Result<Self, ProcessError> {
         unsafe {
