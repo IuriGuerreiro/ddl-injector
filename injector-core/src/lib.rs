@@ -9,4 +9,4 @@ pub mod privilege;
 
 pub use error::{InjectionError, ProcessError};
 pub use process::{ProcessEnumerator, ProcessHandle, ProcessInfo};
-pub use injection::InjectionMethod;
+pub use injection::{InjectionMethod, CreateRemoteThreadInjector};
