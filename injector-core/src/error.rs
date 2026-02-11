@@ -30,11 +30,11 @@ pub enum InjectionError {
     #[error("DLL file not found: {0}")]
     DllNotFound(String),
 
-    #[error("DLL path must be absolute, got relative path: {0}")]
-    RelativePath(String),
+    #[error("DLL path must be absolute")]
+    RelativePath,
 
-    #[error("Architecture mismatch between injector and target process")]
-    ArchitectureMismatch,
+    #[error("Architecture mismatch: injector is {injector}, target is {target}")]
+    ArchitectureMismatch { injector: String, target: String },
 
     #[error("Failed to allocate memory in target process")]
     MemoryAllocationFailed(#[source] std::io::Error),
@@ -46,7 +46,10 @@ pub enum InjectionError {
     MemoryReadFailed(#[source] std::io::Error),
 
     #[error("Failed to create remote thread")]
-    ThreadCreationFailed(#[source] std::io::Error),
+    CreateThreadFailed(#[source] std::io::Error),
+
+    #[error("LoadLibrary address not found in kernel32.dll")]
+    LoadLibraryNotFound,
 
     #[error("Failed to parse PE file")]
     PeParsingFailed(String),
