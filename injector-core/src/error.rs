@@ -1,1 +1,66 @@
 // Error types for injection operations
+
+use thiserror::Error;
+
+/// Errors related to process operations
+#[derive(Debug, Error)]
+pub enum ProcessError {
+    #[error("Failed to create process snapshot")]
+    SnapshotFailed(#[source] std::io::Error),
+
+    #[error("Failed to enumerate processes")]
+    EnumerationFailed(#[source] std::io::Error),
+
+    #[error("Process not found: {0}")]
+    ProcessNotFound(String),
+
+    #[error("Failed to open process with PID {pid}")]
+    OpenProcessFailed {
+        pid: u32,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error("Invalid process handle")]
+    InvalidHandle,
+}
+
+/// Errors related to DLL injection operations
+#[derive(Debug, Error)]
+pub enum InjectionError {
+    #[error("Process operation failed")]
+    ProcessError(#[from] ProcessError),
+
+    #[error("DLL file not found: {0}")]
+    DllNotFound(String),
+
+    #[error("DLL path must be absolute, got relative path: {0}")]
+    RelativePath(String),
+
+    #[error("Architecture mismatch between injector and target process")]
+    ArchitectureMismatch,
+
+    #[error("Failed to allocate memory in target process")]
+    MemoryAllocationFailed(#[source] std::io::Error),
+
+    #[error("Failed to write to process memory")]
+    MemoryWriteFailed(#[source] std::io::Error),
+
+    #[error("Failed to read from process memory")]
+    MemoryReadFailed(#[source] std::io::Error),
+
+    #[error("Failed to create remote thread")]
+    ThreadCreationFailed(#[source] std::io::Error),
+
+    #[error("Failed to parse PE file")]
+    PeParsingFailed(String),
+
+    #[error("Failed to resolve import: {0}")]
+    ImportResolutionFailed(String),
+
+    #[error("Failed to apply relocations")]
+    RelocationFailed(String),
+
+    #[error("IO error")]
+    Io(#[from] std::io::Error),
+}

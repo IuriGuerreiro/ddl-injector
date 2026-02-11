@@ -16,9 +16,10 @@ Implement manual DLL mapping - the most sophisticated and stealthy injection met
 - [ ] Parse DOS header, NT headers, section headers
 - [ ] Map PE sections into remote memory
 - [ ] Resolve import address table (IAT)
-- [ ] Handle base relocations
+- [ ] Handle deep base relocations (including all block types)
+- [ ] Implement TLS (Thread Local Storage) support and callbacks
+- [ ] Register exception handlers (RtlAddFunctionTable for x64)
 - [ ] Call DllMain entry point remotely
-- [ ] Implement TLS callbacks support
 - [ ] Add thorough error handling and validation
 - [ ] Create extensive tests with sample DLLs
 
@@ -1123,6 +1124,11 @@ impl InjectionMethod for ManualMapInjector {
         sections::map_sections(handle.as_handle(), &pe, base_address)?;
         imports::resolve_imports(handle.as_handle(), &pe, base_address)?;
         relocations::process_relocations(handle.as_handle(), &pe, base_address)?;
+        
+        // CRITICAL: Handle TLS callbacks and Exception Tables here
+        // For x64, use RtlAddFunctionTable in the target process via shellcode
+        // to ensure exceptions in the injected DLL don't crash the host.
+        
         sections::protect_sections(handle.as_handle(), &pe, base_address)?;
 
         // Call DllMain via shellcode

@@ -264,7 +264,8 @@ The `PrivilegeManager` attempts to enable this privilege at startup.
 Prevents common mistakes:
 - Cannot inject 32-bit DLL into 64-bit process
 - Cannot inject 64-bit DLL into 32-bit process
-- Validation happens before injection attempt
+- **STRICT REQUIREMENT:** Validation MUST happen before any remote memory allocation or write operation to prevent target process crashes.
+- UI provides immediate feedback if the application is not running with administrator privileges.
 
 ### Error Handling
 

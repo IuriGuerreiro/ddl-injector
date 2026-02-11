@@ -8,6 +8,8 @@
 
 Implement the foundational CreateRemoteThread injection method. This classic technique allocates memory in the target process, writes the DLL path, and creates a remote thread that calls LoadLibraryW. This phase also establishes the InjectionMethod trait that all injection techniques will implement, providing a unified interface.
 
+**CRITICAL:** Strict architecture validation (32-bit vs 64-bit) MUST be performed before any remote memory is allocated or written to prevent target process crashes.
+
 ## Objectives
 
 - [ ] Define InjectionMethod trait with inject() method

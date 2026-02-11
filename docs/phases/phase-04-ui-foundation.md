@@ -108,6 +108,9 @@ pub struct InjectorApp {
     /// Last error message
     last_error: Option<String>,
 
+    /// Is running as administrator
+    is_admin: bool,
+
     /// UI state
     ui_state: UiState,
 }
@@ -450,10 +453,22 @@ pub fn render(
     injection_method: &mut InjectionMethodType,
     last_error: &Option<String>,
     injecting: bool,
+    is_admin: bool,
     open_file_dialog: &mut dyn FnMut(),
     perform_injection: &mut dyn FnMut(),
 ) {
     ui.heading("DLL Injection");
+
+    // Admin warning
+    if !is_admin {
+        ui.add_space(5.0);
+        ui.group(|ui| {
+            ui.horizontal(|ui| {
+                ui.colored_label(egui::Color32::RED, "⚠ NOT RUNNING AS ADMINISTRATOR");
+            });
+            ui.small("Injection into system processes and most games will fail.");
+        });
+    }
 
     ui.add_space(10.0);
 
