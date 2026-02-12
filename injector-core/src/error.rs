@@ -63,3 +63,22 @@ pub enum InjectionError {
     #[error("IO error")]
     Io(#[from] std::io::Error),
 }
+
+/// Errors that can occur during privilege operations.
+#[derive(Debug, Error)]
+pub enum PrivilegeError {
+    #[error("Failed to open process token")]
+    OpenTokenFailed(#[source] std::io::Error),
+
+    #[error("Failed to lookup privilege value")]
+    LookupPrivilegeFailed(#[source] std::io::Error),
+
+    #[error("Failed to adjust token privileges")]
+    AdjustPrivilegeFailed(#[source] std::io::Error),
+
+    #[error("Privilege not held: {0}")]
+    PrivilegeNotHeld(String),
+
+    #[error("Not running as administrator")]
+    NotAdministrator,
+}
