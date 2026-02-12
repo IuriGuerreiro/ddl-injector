@@ -45,8 +45,8 @@ pub struct InjectorApp {
 pub enum InjectionMethodType {
     CreateRemoteThread,
     ManualMap,
-    // QueueUserAPC will be added in Phase 7
-    // NtCreateThreadEx will be added in Phase 7
+    QueueUserApc,
+    NtCreateThreadEx,
 }
 
 impl InjectionMethodType {
@@ -54,6 +54,8 @@ impl InjectionMethodType {
         match self {
             Self::CreateRemoteThread => "CreateRemoteThread",
             Self::ManualMap => "Manual Map",
+            Self::QueueUserApc => "QueueUserAPC",
+            Self::NtCreateThreadEx => "NtCreateThreadEx",
         }
     }
 
@@ -61,11 +63,18 @@ impl InjectionMethodType {
         match self {
             Self::CreateRemoteThread => "Classic injection via remote thread creation",
             Self::ManualMap => "Advanced stealth injection - bypasses PEB module list",
+            Self::QueueUserApc => "Inject via Asynchronous Procedure Call to alertable threads",
+            Self::NtCreateThreadEx => "Inject via undocumented native API (bypasses some hooks)",
         }
     }
 
     pub fn all() -> &'static [Self] {
-        &[Self::CreateRemoteThread, Self::ManualMap]
+        &[
+            Self::CreateRemoteThread,
+            Self::ManualMap,
+            Self::QueueUserApc,
+            Self::NtCreateThreadEx,
+        ]
     }
 }
 
@@ -210,6 +219,32 @@ impl InjectorApp {
             }
             InjectionMethodType::ManualMap => {
                 let injector = ManualMapInjector;
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::QueueUserApc => {
+                let injector = QueueUserApcInjector::new();
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::NtCreateThreadEx => {
+                let injector = NtCreateThreadExInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
                     Err(e) => {

@@ -3,8 +3,8 @@
 pub mod traits;
 pub mod create_remote_thread;
 pub mod manual_map;
-mod queue_user_apc;
-mod nt_create_thread;
+pub mod queue_user_apc;
+pub mod nt_create_thread;
 
 pub use traits::{
     InjectionMethod,
@@ -15,3 +15,5 @@ pub use traits::{
 };
 pub use create_remote_thread::CreateRemoteThreadInjector;
 pub use manual_map::ManualMapInjector;
+pub use queue_user_apc::QueueUserApcInjector;
+pub use nt_create_thread::NtCreateThreadExInjector;

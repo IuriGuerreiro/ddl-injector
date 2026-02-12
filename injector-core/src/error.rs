@@ -19,6 +19,18 @@ pub enum ProcessError {
 
     #[error("Invalid process handle")]
     InvalidHandle,
+
+    #[error("Failed to create thread snapshot")]
+    ThreadSnapshotFailed(#[source] std::io::Error),
+
+    #[error("Failed to enumerate threads")]
+    ThreadEnumerationFailed(#[source] std::io::Error),
+
+    #[error("No alertable threads found")]
+    NoAlertableThreads,
+
+    #[error("Failed to open thread")]
+    OpenThreadFailed(#[source] std::io::Error),
 }
 
 /// Errors related to DLL injection operations
@@ -50,6 +62,9 @@ pub enum InjectionError {
 
     #[error("LoadLibrary address not found in kernel32.dll")]
     LoadLibraryNotFound,
+
+    #[error("NtCreateThreadEx not found in ntdll.dll")]
+    NtCreateThreadExNotFound,
 
     #[error("Failed to parse PE file")]
     PeParsingFailed(String),

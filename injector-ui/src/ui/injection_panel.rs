@@ -135,13 +135,27 @@ pub fn render(
 
         ui.small(injection_method.description());
 
-        // Show additional info for manual map
-        if matches!(injection_method, InjectionMethodType::ManualMap) {
-            ui.add_space(5.0);
-            ui.colored_label(egui::Color32::from_rgb(100, 200, 255), "🔒 Stealth Features:");
-            ui.small("• Bypasses PEB module list");
-            ui.small("• Not visible in Process Explorer");
-            ui.small("• Advanced injection technique");
+        // Show additional info for specific methods
+        match injection_method {
+            InjectionMethodType::ManualMap => {
+                ui.add_space(5.0);
+                ui.colored_label(egui::Color32::from_rgb(100, 200, 255), "🔒 Stealth Features:");
+                ui.small("• Bypasses PEB module list");
+                ui.small("• Not visible in most module enumerators");
+            }
+            InjectionMethodType::QueueUserApc => {
+                ui.add_space(5.0);
+                ui.colored_label(egui::Color32::YELLOW, "⚠ Note:");
+                ui.small("• Requires alertable threads to execute");
+                ui.small("• Injection may be delayed until a thread sleeps");
+            }
+            InjectionMethodType::NtCreateThreadEx => {
+                ui.add_space(5.0);
+                ui.colored_label(egui::Color32::from_rgb(100, 255, 150), "🚀 Advanced:");
+                ui.small("• Uses undocumented native ntdll API");
+                ui.small("• Bypasses some CreateRemoteThread hooks");
+            }
+            _ => {}
         }
     });
 
