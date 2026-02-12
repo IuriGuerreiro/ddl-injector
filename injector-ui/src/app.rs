@@ -159,13 +159,62 @@ impl InjectorApp {
 
     fn configure_style(ctx: &egui::Context) {
         let mut style = (*ctx.style()).clone();
+        style.spacing.item_spacing = egui::vec2(10.0, 10.0);
+        style.spacing.button_padding = egui::vec2(14.0, 10.0);
+        style.spacing.window_margin = egui::Margin::same(14.0);
 
-        // Customize colors
-        style.visuals.window_rounding = 8.0.into();
-        style.visuals.widgets.noninteractive.rounding = 4.0.into();
-        style.visuals.widgets.inactive.rounding = 4.0.into();
-        style.visuals.widgets.hovered.rounding = 4.0.into();
-        style.visuals.widgets.active.rounding = 4.0.into();
+        // Brutalist cyberpunk inspired theme
+        style.visuals.dark_mode = true;
+        style.visuals.window_fill = egui::Color32::from_rgb(8, 10, 14);
+        style.visuals.faint_bg_color = egui::Color32::from_rgb(16, 19, 28);
+        style.visuals.panel_fill = egui::Color32::from_rgb(10, 12, 18);
+        style.visuals.extreme_bg_color = egui::Color32::from_rgb(3, 4, 7);
+        style.visuals.code_bg_color = egui::Color32::from_rgb(12, 18, 26);
+        style.visuals.selection.bg_fill = egui::Color32::from_rgb(0, 238, 255);
+        style.visuals.selection.stroke.color = egui::Color32::BLACK;
+        style.visuals.hyperlink_color = egui::Color32::from_rgb(255, 92, 246);
+
+        style.visuals.window_rounding = 0.0.into();
+        style.visuals.widgets.noninteractive.rounding = 0.0.into();
+        style.visuals.widgets.inactive.rounding = 0.0.into();
+        style.visuals.widgets.hovered.rounding = 0.0.into();
+        style.visuals.widgets.active.rounding = 0.0.into();
+
+        style.visuals.widgets.noninteractive.bg_fill = egui::Color32::from_rgb(14, 18, 26);
+        style.visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(12, 18, 26);
+        style.visuals.widgets.inactive.fg_stroke.color = egui::Color32::from_rgb(178, 255, 252);
+        style.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(255, 92, 246);
+        style.visuals.widgets.hovered.fg_stroke.color = egui::Color32::BLACK;
+        style.visuals.widgets.active.bg_fill = egui::Color32::from_rgb(0, 238, 255);
+        style.visuals.widgets.active.fg_stroke.color = egui::Color32::BLACK;
+        style.visuals.widgets.open.bg_fill = egui::Color32::from_rgb(0, 238, 255);
+
+        style.visuals.window_stroke = egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 238, 255));
+        style.visuals.widgets.noninteractive.bg_stroke =
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(0, 238, 255));
+        style.visuals.widgets.inactive.bg_stroke =
+            egui::Stroke::new(1.0, egui::Color32::from_rgb(93, 114, 140));
+        style.visuals.widgets.hovered.bg_stroke =
+            egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 225, 64));
+        style.visuals.widgets.active.bg_stroke =
+            egui::Stroke::new(2.0, egui::Color32::from_rgb(255, 225, 64));
+
+        style.text_styles.insert(
+            egui::TextStyle::Heading,
+            egui::FontId::new(26.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Body,
+            egui::FontId::new(16.0, egui::FontFamily::Monospace),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Button,
+            egui::FontId::new(15.0, egui::FontFamily::Monospace),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Monospace,
+            egui::FontId::new(15.0, egui::FontFamily::Monospace),
+        );
 
         ctx.set_style(style);
     }
@@ -322,6 +371,19 @@ impl eframe::App for InjectorApp {
 
         // Top menu bar
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new("DDL INJECTOR // OPS CONSOLE")
+                        .strong()
+                        .color(egui::Color32::from_rgb(0, 238, 255)),
+                );
+                ui.separator();
+                ui.small(
+                    egui::RichText::new("Neon Brutalist Control Deck")
+                        .color(egui::Color32::from_rgb(255, 225, 64)),
+                );
+            });
+
             egui::menu::bar(ui, |ui| {
                 ui.menu_button("File", |ui| {
                     if ui.button("Refresh Processes").clicked() {

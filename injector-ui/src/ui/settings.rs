@@ -5,13 +5,20 @@ use crate::config::Config;
 use eframe::egui;
 
 pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut InjectionMethodType) {
-    ui.heading("Settings");
+    ui.heading(
+        egui::RichText::new("CONTROL TUNING")
+            .color(egui::Color32::from_rgb(255, 225, 64))
+            .strong(),
+    );
 
     ui.add_space(10.0);
 
-    // Preferred injection method
     ui.group(|ui| {
-        ui.label("Default Injection Method:");
+        ui.label(
+            egui::RichText::new("DEFAULT DELIVERY VECTOR")
+                .strong()
+                .color(egui::Color32::from_rgb(255, 92, 246)),
+        );
 
         let mut method = config.preferred_method;
 
@@ -48,9 +55,12 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     ui.add_space(10.0);
 
-    // Auto-refresh interval
     ui.group(|ui| {
-        ui.label("Auto-Refresh Process List:");
+        ui.label(
+            egui::RichText::new("AUTO RESCAN CLOCK")
+                .strong()
+                .color(egui::Color32::from_rgb(255, 92, 246)),
+        );
 
         ui.horizontal(|ui| {
             ui.add(
@@ -60,22 +70,22 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
             );
 
             if config.auto_refresh_interval == 0 {
-                ui.label("(disabled)");
+                ui.colored_label(egui::Color32::from_rgb(255, 225, 64), "DISABLED");
             }
         });
-
-        ui.small("Set to 0 to disable automatic refresh");
     });
 
     ui.add_space(10.0);
 
-    // Recent DLLs
     ui.group(|ui| {
-        ui.label("Recent DLLs:");
+        ui.label(
+            egui::RichText::new("RECENT PAYLOADS")
+                .strong()
+                .color(egui::Color32::from_rgb(255, 92, 246)),
+        );
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} recent DLLs", config.recent_dlls.len()));
-
+            ui.label(format!("{} tracked", config.recent_dlls.len()));
             if ui.button("Clear").clicked() {
                 config.clear_recent();
             }
@@ -87,10 +97,10 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
             .max_height(200.0)
             .show(ui, |ui| {
                 if config.recent_dlls.is_empty() {
-                    ui.colored_label(egui::Color32::GRAY, "No recent DLLs");
+                    ui.colored_label(egui::Color32::from_rgb(105, 122, 142), "No payload history");
                 } else {
                     for dll_path in &config.recent_dlls {
-                        ui.small(dll_path.display().to_string());
+                        ui.small(egui::RichText::new(dll_path.display().to_string()).monospace());
                     }
                 }
             });
@@ -98,12 +108,15 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     ui.add_space(10.0);
 
-    // Config file location
     ui.group(|ui| {
-        ui.label("Configuration:");
+        ui.label(
+            egui::RichText::new("CONFIG ARTIFACT")
+                .strong()
+                .color(egui::Color32::from_rgb(255, 92, 246)),
+        );
 
         let config_path = Config::config_path();
-        ui.small(format!("Location: {}", config_path.display()));
+        ui.small(egui::RichText::new(format!("Path: {}", config_path.display())).monospace());
 
         ui.horizontal(|ui| {
             if ui.button("Save Now").clicked() {
@@ -114,7 +127,7 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
                 }
             }
 
-            if ui.button("Reset to Defaults").clicked() {
+            if ui.button("Reset Defaults").clicked() {
                 *config = Config::default();
                 log::info!("Configuration reset to defaults");
             }
