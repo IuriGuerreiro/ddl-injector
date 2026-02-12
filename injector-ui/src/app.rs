@@ -176,11 +176,11 @@ impl InjectorApp {
         style.visuals.extreme_bg_color = egui::Color32::from_rgb(4, 8, 14);
         style.visuals.override_text_color = Some(egui::Color32::from_rgb(218, 223, 236));
         style.visuals.hyperlink_color = egui::Color32::from_rgb(240, 112, 89);
-        style.visuals.window_corner_radius = 12.0.into();
-        style.visuals.widgets.noninteractive.corner_radius = 8.0.into();
-        style.visuals.widgets.inactive.corner_radius = 8.0.into();
-        style.visuals.widgets.hovered.corner_radius = 8.0.into();
-        style.visuals.widgets.active.corner_radius = 8.0.into();
+        style.visuals.window_rounding = 12.0.into();
+        style.visuals.widgets.noninteractive.rounding = 8.0.into();
+        style.visuals.widgets.inactive.rounding = 8.0.into();
+        style.visuals.widgets.hovered.rounding = 8.0.into();
+        style.visuals.widgets.active.rounding = 8.0.into();
         style.spacing.item_spacing = egui::vec2(8.0, 8.0);
         style.spacing.button_padding = egui::vec2(12.0, 8.0);
 

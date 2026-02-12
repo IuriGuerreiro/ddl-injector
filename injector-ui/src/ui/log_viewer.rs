@@ -73,8 +73,8 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
 
     egui::Frame::default()
         .fill(egui::Color32::from_rgb(17, 22, 36))
-        .corner_radius(12.0)
-        .inner_margin(egui::Margin::symmetric(10, 10))
+        .rounding(12.0)
+        .inner_margin(egui::Margin::symmetric(10.0, 10.0))
         .show(ui, |ui| {
             ui.horizontal_wrapped(|ui| {
                 if ui.button("CLEAR").clicked() {
@@ -143,8 +143,8 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
 
                         egui::Frame::default()
                             .fill(egui::Color32::from_rgb(24, 31, 46))
-                            .corner_radius(8.0)
-                            .inner_margin(egui::Margin::symmetric(8, 6))
+                            .rounding(8.0)
+                            .inner_margin(egui::Margin::symmetric(8.0, 6.0))
                             .show(ui, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     let datetime: DateTime<Local> = entry.timestamp.into();

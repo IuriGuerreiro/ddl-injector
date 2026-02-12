@@ -42,8 +42,8 @@ pub fn render(
         egui::Frame::default()
             .fill(egui::Color32::from_rgb(17, 27, 35))
             .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(53, 74, 92)))
-            .corner_radius(12.0)
-            .inner_margin(egui::Margin::symmetric(12, 10))
+            .rounding(12.0)
+            .inner_margin(egui::Margin::symmetric(12.0, 10.0))
             .show(ui, |ui| {
                 ui.label(
                     egui::RichText::new("PRIVILEGE CHANNEL")
@@ -85,8 +85,8 @@ pub fn render(
 
         egui::Frame::default()
             .fill(egui::Color32::from_rgb(20, 24, 41))
-            .corner_radius(12.0)
-            .inner_margin(egui::Margin::symmetric(12, 10))
+            .rounding(12.0)
+            .inner_margin(egui::Margin::symmetric(12.0, 10.0))
             .show(ui, |ui| {
                 ui.label(egui::RichText::new("TARGET LOCK").monospace().size(11.0));
                 if let Some(idx) = selected_idx {
@@ -115,8 +115,8 @@ pub fn render(
 
         egui::Frame::default()
             .fill(egui::Color32::from_rgb(20, 24, 41))
-            .corner_radius(12.0)
-            .inner_margin(egui::Margin::symmetric(12, 10))
+            .rounding(12.0)
+            .inner_margin(egui::Margin::symmetric(12.0, 10.0))
             .show(ui, |ui| {
                 ui.label(egui::RichText::new("PAYLOAD").monospace().size(11.0));
                 ui.horizontal(|ui| {
@@ -124,7 +124,7 @@ pub fn render(
                         .add(
                             egui::Button::new("BROWSE DLL")
                                 .fill(egui::Color32::from_rgb(64, 87, 129))
-                                .corner_radius(8.0),
+                                .rounding(8.0),
                         )
                         .clicked()
                     {
@@ -183,8 +183,8 @@ pub fn render(
 
         egui::Frame::default()
             .fill(egui::Color32::from_rgb(20, 24, 41))
-            .corner_radius(12.0)
-            .inner_margin(egui::Margin::symmetric(12, 10))
+            .rounding(12.0)
+            .inner_margin(egui::Margin::symmetric(12.0, 10.0))
             .show(ui, |ui| {
                 ui.label(egui::RichText::new("VECTOR").monospace().size(11.0));
                 egui::ComboBox::from_id_salt("method_selector")
@@ -215,7 +215,7 @@ pub fn render(
             } else {
                 egui::Color32::from_rgb(63, 68, 79)
             })
-            .corner_radius(12.0)
+            .rounding(12.0)
             .min_size(egui::vec2(ui.available_width(), 46.0));
 
         if ui.add_enabled(can_inject, button).clicked() {
@@ -232,8 +232,8 @@ pub fn render(
             egui::Frame::default()
                 .fill(egui::Color32::from_rgb(60, 28, 31))
                 .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(190, 83, 72)))
-                .corner_radius(10.0)
-                .inner_margin(egui::Margin::same(10))
+                .rounding(10.0)
+                .inner_margin(egui::Margin::same(10.0))
                 .show(ui, |ui| {
                     ui.colored_label(egui::Color32::from_rgb(255, 176, 169), "TRANSMISSION ERROR");
                     ui.label(error);
@@ -248,8 +248,8 @@ fn privilege_pill(ui: &mut egui::Ui, label: &str, color: egui::Color32) {
     egui::Frame::default()
         .fill(color.gamma_multiply(0.20))
         .stroke(egui::Stroke::new(1.0, color))
-        .corner_radius(99.0)
-        .inner_margin(egui::Margin::symmetric(10, 4))
+        .rounding(99.0)
+        .inner_margin(egui::Margin::symmetric(10.0, 4.0))
         .show(ui, |ui| {
             ui.colored_label(color, label);
         });

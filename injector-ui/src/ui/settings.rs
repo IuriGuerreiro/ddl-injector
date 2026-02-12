@@ -16,8 +16,8 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     egui::Frame::default()
         .fill(egui::Color32::from_rgb(20, 24, 41))
-        .corner_radius(10.0)
-        .inner_margin(egui::Margin::same(10))
+        .rounding(10.0)
+        .inner_margin(egui::Margin::same(10.0))
         .show(ui, |ui| {
             ui.label("Default Injection Method");
 
@@ -57,8 +57,8 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     egui::Frame::default()
         .fill(egui::Color32::from_rgb(20, 24, 41))
-        .corner_radius(10.0)
-        .inner_margin(egui::Margin::same(10))
+        .rounding(10.0)
+        .inner_margin(egui::Margin::same(10.0))
         .show(ui, |ui| {
             ui.label("Auto-Refresh Process List");
             ui.add(
@@ -75,8 +75,8 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     egui::Frame::default()
         .fill(egui::Color32::from_rgb(20, 24, 41))
-        .corner_radius(10.0)
-        .inner_margin(egui::Margin::same(10))
+        .rounding(10.0)
+        .inner_margin(egui::Margin::same(10.0))
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.label(format!("Recent DLLs ({})", config.recent_dlls.len()));
@@ -102,8 +102,8 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
 
     egui::Frame::default()
         .fill(egui::Color32::from_rgb(20, 24, 41))
-        .corner_radius(10.0)
-        .inner_margin(egui::Margin::same(10))
+        .rounding(10.0)
+        .inner_margin(egui::Margin::same(10.0))
         .show(ui, |ui| {
             ui.label("Configuration");
             ui.small(format!("Location: {}", Config::config_path().display()));

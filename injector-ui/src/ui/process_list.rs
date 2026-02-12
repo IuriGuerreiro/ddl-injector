@@ -15,7 +15,7 @@ pub fn render(
             ui.heading("PROCESS MATRIX");
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 let refresh = egui::Button::new("⟳ SYNC")
-                    .corner_radius(10.0)
+                    .rounding(10.0)
                     .fill(egui::Color32::from_rgb(219, 91, 74));
                 if ui.add(refresh).clicked() {
                     *refresh_flag = true;
@@ -62,10 +62,10 @@ pub fn render(
 
         ui.add_space(6.0);
 
-        egui::Frame::new()
+        egui::Frame::none()
             .fill(egui::Color32::from_rgb(18, 23, 33))
-            .corner_radius(14.0)
-            .inner_margin(egui::Margin::symmetric(8, 8))
+            .rounding(14.0)
+            .inner_margin(egui::Margin::symmetric(8.0, 8.0))
             .show(ui, |ui| {
                 egui::ScrollArea::vertical()
                     .auto_shrink([false, false])
@@ -94,7 +94,7 @@ pub fn render(
                                 } else {
                                     egui::Color32::from_rgb(24, 31, 46)
                                 })
-                                .corner_radius(8.0)
+                                .rounding(8.0)
                                 .min_size(egui::vec2(ui.available_width(), 28.0));
 
                             let response = ui.add(row);
