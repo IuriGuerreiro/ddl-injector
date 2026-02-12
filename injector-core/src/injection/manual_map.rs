@@ -5,10 +5,11 @@
 //! the PEB module list, making it harder to detect.
 
 use std::path::Path;
+use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Threading::{
-    CreateRemoteThread, WaitForSingleObject, GetExitCodeThread, INFINITE,
-    PROCESS_ACCESS_RIGHTS, PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION,
-    PROCESS_VM_OPERATION, PROCESS_VM_READ, PROCESS_VM_WRITE,
+    CreateRemoteThread, GetExitCodeThread, WaitForSingleObject, INFINITE, PROCESS_ACCESS_RIGHTS,
+    PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION, PROCESS_VM_OPERATION, PROCESS_VM_READ,
+    PROCESS_VM_WRITE,
 };
 use crate::{InjectionError, ProcessHandle};
 use crate::memory::{RemoteMemory, write_memory};
@@ -147,6 +148,10 @@ impl InjectionMethod for ManualMapInjector {
         }
 
         log::debug!("DllMain exit code: {}", exit_code);
+
+        unsafe {
+            let _ = CloseHandle(thread);
+        }
 
         if exit_code == 0 {
             return Err(InjectionError::DllMainFailed);
