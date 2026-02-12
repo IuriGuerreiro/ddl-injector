@@ -149,7 +149,25 @@ pub fn render(
 
     // Inject button
     ui.vertical_centered(|ui| {
-        let can_inject = selected_idx.is_some() && dll_path.is_some() && !injecting;
+        let has_process = selected_idx.is_some();
+        let has_dll = dll_path.is_some();
+        let can_inject = has_process && has_dll && !injecting;
+
+        // Debug info for troubleshooting
+        if !can_inject {
+            ui.add_space(5.0);
+            ui.label("Button disabled because:");
+            if !has_process {
+                ui.small("  ❌ No process selected");
+            }
+            if !has_dll {
+                ui.small("  ❌ No DLL selected");
+            }
+            if injecting {
+                ui.small("  ⏳ Injection in progress");
+            }
+            ui.add_space(5.0);
+        }
 
         let button = egui::Button::new(if injecting { "Injecting..." } else { "💉 Inject" })
             .min_size(egui::vec2(200.0, 40.0));
