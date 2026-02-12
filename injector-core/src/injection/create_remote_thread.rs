@@ -20,6 +20,7 @@ use std::path::Path;
 use windows::Win32::System::Threading::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::System::Memory::PAGE_READWRITE;
+use windows::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
 use crate::injection::{InjectionMethod, InjectionResult, validate_dll_path, validate_architecture};
 use crate::memory::{RemoteMemory, write_wide_string};
 use crate::{ProcessHandle, InjectionError};
@@ -114,8 +115,8 @@ impl InjectionMethod for CreateRemoteThreadInjector {
         unsafe {
             let wait_result = WaitForSingleObject(thread_handle, 5000); // 5 second timeout
 
-            match wait_result.0 {
-                0 => { // WAIT_OBJECT_0
+            match wait_result {
+                WAIT_OBJECT_0 => {
                     log::debug!("Thread completed successfully");
 
                     // Get thread exit code (DLL module handle)
@@ -123,18 +124,19 @@ impl InjectionMethod for CreateRemoteThreadInjector {
                     if GetExitCodeThread(thread_handle, &mut exit_code).is_ok() {
                         if exit_code == 0 {
                             log::error!("LoadLibraryW returned NULL - DLL failed to load");
-                            return Err(InjectionError::Io(std::io::Error::other(
+                            return Err(InjectionError::Io(std::io::Error::new(
+                                std::io::ErrorKind::Other,
                                 "LoadLibraryW failed in target process"
                             )));
                         }
                         log::info!("DLL loaded at address: 0x{:X}", exit_code);
                     }
                 }
-                0x102 => { // WAIT_TIMEOUT
+                WAIT_TIMEOUT => {
                     log::warn!("Thread wait timeout - injection may have failed");
                 }
                 _ => {
-                    log::error!("Thread wait failed");
+                    log::error!("Thread wait failed: {:?}", wait_result);
                 }
             }
 

@@ -76,15 +76,10 @@ pub fn is_process_64bit(handle: &ProcessHandle) -> InjectionResult<bool> {
     // If running on 64-bit Windows:
     // - WoW64 process = 32-bit
     // - Non-WoW64 process = 64-bit
-    #[cfg(target_pointer_width = "64")]
-    {
+    if cfg!(target_pointer_width = "64") {
         Ok(!is_wow64.as_bool())
-    }
-
-    // If running on 32-bit Windows, all processes are 32-bit
-    #[cfg(target_pointer_width = "32")]
-    {
-        let _ = is_wow64; // Suppress unused variable warning
+    } else {
+        // If running on 32-bit Windows, all processes are 32-bit
         Ok(false)
     }
 }
