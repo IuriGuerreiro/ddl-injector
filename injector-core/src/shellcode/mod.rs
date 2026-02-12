@@ -1,7 +1,11 @@
 //! Shellcode generation for injection techniques.
 //!
 //! This module provides utilities for generating position-independent
-//! shellcode for various injection methods, particularly thread hijacking.
+//! shellcode for various injection methods, particularly thread hijacking
+//! and reflective DLL loading.
+
+pub mod peb_walker;
+pub mod reflective_stub;
 
 use crate::error::InjectionError;
 

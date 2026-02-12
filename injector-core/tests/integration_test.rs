@@ -577,11 +577,11 @@ fn test_reflective_loader_injection() {
     use helpers::*;
 
     println!("Testing Reflective Loader injection...");
-    println!("NOTE: This is a RESEARCH method and may not be fully implemented");
+    println!("NOTE: This is an ADVANCED stealth method - DLL won't appear in PEB module list");
 
     let dll_path = test_dll_path();
     if !dll_path.exists() {
-        panic!("Test DLL not found");
+        panic!("Test DLL not found at {:?}. Run: cargo build -p test-dll --release --features silent", dll_path);
     }
 
     let (mut child, pid) = spawn_test_process();
@@ -594,16 +594,38 @@ fn test_reflective_loader_injection() {
     println!("Injecting into PID {} using Reflective Loader...", pid);
     let result = injector.inject(&handle, &dll_path);
 
-    // Reflective loader is not fully implemented, so we expect it to fail
-    if result.is_err() {
-        println!("Reflective Loader failed (expected - not fully implemented)");
-        println!("Error: {:?}", result.err());
-    } else {
-        println!("Reflective Loader injection succeeded (unexpected!)");
+    // Give time for reflective loader to execute
+    std::thread::sleep(Duration::from_millis(200));
+
+    if let Err(e) = &result {
+        println!("Injection error: {:?}", e);
     }
+
+    // Reflective loader is now implemented
+    assert!(
+        result.is_ok(),
+        "Reflective Loader injection failed: {:?}",
+        result.err()
+    );
+
+    // Verify DLL executed by checking marker file
+    assert!(
+        check_marker_file(),
+        "Marker file not created - DLL did not execute!"
+    );
+
+    if let Some(contents) = read_marker_file() {
+        println!("Marker file contents:\n{}", contents);
+        assert!(contents.contains("DLL Injected Successfully"));
+        assert!(contents.contains("Process ID"));
+    }
+
+    println!("Reflective Loader injection succeeded!");
+    println!("IMPORTANT: DLL is loaded via reflective loading (stealth mode)");
+    println!("The DLL will NOT appear in the PEB module list");
 
     let _ = child.kill();
     clear_marker_file();
 
-    println!("Reflective Loader injection test completed!");
+    println!("Reflective Loader injection test passed!");
 }
