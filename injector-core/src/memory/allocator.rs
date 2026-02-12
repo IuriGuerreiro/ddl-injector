@@ -62,6 +62,23 @@ impl RemoteMemory {
         self.address
     }
 
+    /// Allocate executable memory in the target process.
+    ///
+    /// This is a convenience method that allocates memory with PAGE_EXECUTE_READWRITE protection.
+    ///
+    /// # Arguments
+    /// * `process` - Target process handle
+    /// * `size` - Number of bytes to allocate
+    ///
+    /// # Errors
+    /// Returns `InjectionError::MemoryAllocationFailed` on failure.
+    pub fn allocate_executable(
+        process: HANDLE,
+        size: usize,
+    ) -> Result<Self, InjectionError> {
+        Self::allocate(process, size, PAGE_EXECUTE_READWRITE)
+    }
+
     /// Get the size of the allocation.
     pub fn size(&self) -> usize {
         self.size
