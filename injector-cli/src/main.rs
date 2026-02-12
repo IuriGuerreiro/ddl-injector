@@ -1,40 +1,57 @@
-//! Simple CLI tool for testing DLL injection.
+//! CLI tool for DLL injection with multiple injection methods.
 
 use injector_core::*;
-use std::env;
 use std::path::PathBuf;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "injector-cli")]
+#[command(about = "DLL injection tool with multiple injection methods", long_about = None)]
+struct Args {
+    /// Target process name or PID
+    #[arg(value_name = "PROCESS")]
+    process: String,
+
+    /// Path to the DLL file to inject
+    #[arg(value_name = "DLL_PATH")]
+    dll_path: PathBuf,
+
+    /// Injection method to use
+    #[arg(short, long, value_name = "METHOD", default_value = "create-remote-thread")]
+    method: InjectionMethodType,
+}
+
+#[derive(Debug, Clone, Copy, clap::ValueEnum)]
+enum InjectionMethodType {
+    /// CreateRemoteThread injection (classic method)
+    #[value(name = "create-remote-thread")]
+    CreateRemoteThread,
+
+    /// Manual mapping injection (stealth method)
+    #[value(name = "manual-map")]
+    ManualMap,
+}
 
 fn main() {
     // Initialize logger
     env_logger::init();
 
-    let args: Vec<String> = env::args().collect();
-
-    if args.len() != 3 {
-        eprintln!("Usage: {} <process_name_or_pid> <dll_path>", args[0]);
-        eprintln!();
-        eprintln!("Examples:");
-        eprintln!("  {} notepad.exe C:\\path\\to\\test.dll", args[0]);
-        eprintln!("  {} 1234 C:\\path\\to\\test.dll", args[0]);
-        std::process::exit(1);
-    }
-
-    let process_identifier = &args[1];
-    let dll_path = PathBuf::from(&args[2]);
+    // Parse arguments
+    let args = Args::parse();
 
     // Convert DLL path to absolute if needed
-    let dll_path = if dll_path.is_absolute() {
-        dll_path
+    let dll_path = if args.dll_path.is_absolute() {
+        args.dll_path
     } else {
         std::env::current_dir()
             .expect("Failed to get current directory")
-            .join(dll_path)
+            .join(args.dll_path)
     };
 
-    println!("🔍 Searching for process: {}", process_identifier);
+    println!("🔍 Searching for process: {}", args.process);
 
     // Try to parse as PID first, otherwise treat as process name
-    let processes = if let Ok(pid) = process_identifier.parse::<u32>() {
+    let processes = if let Ok(pid) = args.process.parse::<u32>() {
         println!("   Looking for PID: {}", pid);
         match ProcessEnumerator::find_by_pid(pid) {
             Ok(info) => vec![info],
@@ -44,11 +61,11 @@ fn main() {
             }
         }
     } else {
-        println!("   Looking for process name: {}", process_identifier);
-        match ProcessEnumerator::find_by_name(process_identifier) {
+        println!("   Looking for process name: {}", args.process);
+        match ProcessEnumerator::find_by_name(&args.process) {
             Ok(procs) => {
                 if procs.is_empty() {
-                    eprintln!("❌ No processes found with name: {}", process_identifier);
+                    eprintln!("❌ No processes found with name: {}", args.process);
                     std::process::exit(1);
                 }
                 procs
@@ -75,37 +92,80 @@ fn main() {
         println!("   Path: {}", path.display());
     }
 
-    // Create injector
-    let injector = CreateRemoteThreadInjector::new();
-    println!("\n💉 Using injection method: {}", injector.name());
-    println!("   DLL path: {}", dll_path.display());
+    // Create the appropriate injector based on method
+    let result = match args.method {
+        InjectionMethodType::CreateRemoteThread => {
+            let injector = CreateRemoteThreadInjector::new();
+            println!("\n💉 Using injection method: {}", injector.name());
+            println!("   DLL path: {}", dll_path.display());
 
-    // Check if DLL exists
-    if !dll_path.exists() {
-        eprintln!("\n❌ DLL file not found: {}", dll_path.display());
-        std::process::exit(1);
-    }
+            // Check if DLL exists
+            if !dll_path.exists() {
+                eprintln!("\n❌ DLL file not found: {}", dll_path.display());
+                std::process::exit(1);
+            }
 
-    // Open process handle
-    println!("\n🔓 Opening process handle...");
-    let handle = match ProcessHandle::open(target.pid, injector.required_access()) {
-        Ok(h) => {
-            println!("✓ Process handle opened successfully");
-            h
+            // Open process handle
+            println!("\n🔓 Opening process handle...");
+            let handle = match ProcessHandle::open(target.pid, injector.required_access()) {
+                Ok(h) => {
+                    println!("✓ Process handle opened successfully");
+                    h
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to open process: {}", e);
+                    eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
+                    std::process::exit(1);
+                }
+            };
+
+            // Perform injection
+            println!("\n💉 Injecting DLL...");
+            injector.inject(&handle, &dll_path)
         }
-        Err(e) => {
-            eprintln!("❌ Failed to open process: {}", e);
-            eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
-            std::process::exit(1);
+        InjectionMethodType::ManualMap => {
+            let injector = ManualMapInjector;
+            println!("\n💉 Using injection method: {}", injector.name());
+            println!("   DLL path: {}", dll_path.display());
+            println!("   ⚠️  Advanced stealth injection - DLL will not appear in PEB module list");
+
+            // Check if DLL exists
+            if !dll_path.exists() {
+                eprintln!("\n❌ DLL file not found: {}", dll_path.display());
+                std::process::exit(1);
+            }
+
+            // Open process handle
+            println!("\n🔓 Opening process handle...");
+            let handle = match ProcessHandle::open(target.pid, injector.required_access()) {
+                Ok(h) => {
+                    println!("✓ Process handle opened successfully");
+                    h
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to open process: {}", e);
+                    eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
+                    std::process::exit(1);
+                }
+            };
+
+            // Perform injection
+            println!("\n💉 Injecting DLL...");
+            println!("   This may take a moment as the DLL is manually mapped...");
+            injector.inject(&handle, &dll_path)
         }
     };
 
-    // Perform injection
-    println!("\n💉 Injecting DLL...");
-    match injector.inject(&handle, &dll_path) {
+    match result {
         Ok(()) => {
             println!("\n✅ Injection successful!");
             println!("   The DLL should now be loaded in the target process");
+            if matches!(args.method, InjectionMethodType::ManualMap) {
+                println!("\n💡 Stealth Note:");
+                println!("   - DLL will NOT appear in Process Explorer's module list");
+                println!("   - DLL will NOT appear in Windows loader structures (PEB)");
+                println!("   - Detection requires advanced memory scanning");
+            }
         }
         Err(e) => {
             eprintln!("\n❌ Injection failed: {}", e);

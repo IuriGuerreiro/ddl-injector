@@ -124,15 +124,25 @@ pub fn render(
         egui::ComboBox::from_id_salt("method_selector")
             .selected_text(injection_method.name())
             .show_ui(ui, |ui| {
-                ui.selectable_value(
-                    injection_method,
-                    InjectionMethodType::CreateRemoteThread,
-                    "CreateRemoteThread",
-                );
-                // More methods will be added in later phases
+                for method in InjectionMethodType::all() {
+                    ui.selectable_value(
+                        injection_method,
+                        *method,
+                        method.name(),
+                    );
+                }
             });
 
         ui.small(injection_method.description());
+
+        // Show additional info for manual map
+        if matches!(injection_method, InjectionMethodType::ManualMap) {
+            ui.add_space(5.0);
+            ui.colored_label(egui::Color32::from_rgb(100, 200, 255), "🔒 Stealth Features:");
+            ui.small("• Bypasses PEB module list");
+            ui.small("• Not visible in Process Explorer");
+            ui.small("• Advanced injection technique");
+        }
     });
 
     ui.add_space(20.0);

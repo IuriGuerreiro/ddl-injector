@@ -44,7 +44,7 @@ pub struct InjectorApp {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InjectionMethodType {
     CreateRemoteThread,
-    // Manual mapping will be added in Phase 6
+    ManualMap,
     // QueueUserAPC will be added in Phase 7
     // NtCreateThreadEx will be added in Phase 7
 }
@@ -53,13 +53,19 @@ impl InjectionMethodType {
     pub fn name(&self) -> &'static str {
         match self {
             Self::CreateRemoteThread => "CreateRemoteThread",
+            Self::ManualMap => "Manual Map",
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
             Self::CreateRemoteThread => "Classic injection via remote thread creation",
+            Self::ManualMap => "Advanced stealth injection - bypasses PEB module list",
         }
+    }
+
+    pub fn all() -> &'static [Self] {
+        &[Self::CreateRemoteThread, Self::ManualMap]
     }
 }
 
@@ -180,22 +186,45 @@ impl InjectorApp {
         let process = &self.processes[selected_idx];
 
         self.ui_state.injecting = true;
-        log::info!("Starting injection into {} (PID: {})", process.name, process.pid);
+        log::info!(
+            "Starting {} injection into {} (PID: {})",
+            self.injection_method.name(),
+            process.name,
+            process.pid
+        );
 
-        // Open process with required access
-        let injector = CreateRemoteThreadInjector::new();
-        let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
-            Ok(h) => h,
-            Err(e) => {
-                self.last_error = Some(format!("Failed to open process: {}", e));
-                log::error!("{}", self.last_error.as_ref().unwrap());
-                self.ui_state.injecting = false;
-                return;
+        // Perform injection based on selected method
+        let result = match self.injection_method {
+            InjectionMethodType::CreateRemoteThread => {
+                let injector = CreateRemoteThreadInjector::new();
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::ManualMap => {
+                let injector = ManualMapInjector;
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
             }
         };
 
-        // Perform injection
-        match injector.inject(&handle, dll_path) {
+        // Handle result
+        match result {
             Ok(_) => {
                 log::info!("Injection successful!");
                 self.last_error = None;

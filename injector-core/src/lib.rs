@@ -9,5 +9,5 @@ pub mod privilege;
 
 pub use error::{InjectionError, ProcessError, PrivilegeError};
 pub use process::{ProcessEnumerator, ProcessHandle, ProcessInfo};
-pub use injection::{InjectionMethod, CreateRemoteThreadInjector};
+pub use injection::{InjectionMethod, CreateRemoteThreadInjector, ManualMapInjector};
 pub use privilege::PrivilegeManager;
