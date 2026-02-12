@@ -42,24 +42,26 @@ impl PeFile {
         // Parse DOS header
         if data.len() < mem::size_of::<ImageDosHeader>() {
             return Err(InjectionError::InvalidPeFile(
-                "File too small for DOS header".to_string()
+                "File too small for DOS header".to_string(),
             ));
         }
 
-        let dos_header = unsafe {
-            *(data.as_ptr() as *const ImageDosHeader)
-        };
+        let dos_header = unsafe { std::ptr::read_unaligned(data.as_ptr() as *const ImageDosHeader) };
 
-        log::debug!("DOS header: magic=0x{:04X}, e_lfanew=0x{:08X}",
-            dos_header.e_magic, dos_header.e_lfanew);
+        log::debug!(
+            "DOS header: magic=0x{:04X}, e_lfanew=0x{:08X}",
+            dos_header.e_magic,
+            dos_header.e_lfanew
+        );
 
         dos_header.validate()?;
 
         // Validate e_lfanew offset
         if dos_header.e_lfanew < 0 || (dos_header.e_lfanew as usize) >= data.len() {
-            return Err(InjectionError::InvalidPeFile(
-                format!("Invalid e_lfanew offset: 0x{:08X}", dos_header.e_lfanew)
-            ));
+            return Err(InjectionError::InvalidPeFile(format!(
+                "Invalid e_lfanew offset: 0x{:08X}",
+                dos_header.e_lfanew
+            )));
         }
 
         let nt_offset = dos_header.e_lfanew as usize;
@@ -67,7 +69,7 @@ impl PeFile {
         // Parse NT signature
         if nt_offset + 4 > data.len() {
             return Err(InjectionError::InvalidPeFile(
-                "File too small for NT headers".to_string()
+                "File too small for NT headers".to_string(),
             ));
         }
 
@@ -88,16 +90,20 @@ impl PeFile {
         let file_header_offset = nt_offset + 4;
         if file_header_offset + mem::size_of::<ImageFileHeader>() > data.len() {
             return Err(InjectionError::InvalidPeFile(
-                "File too small for COFF header".to_string()
+                "File too small for COFF header".to_string(),
             ));
         }
 
         let file_header = unsafe {
-            *((data.as_ptr().add(file_header_offset)) as *const ImageFileHeader)
+            std::ptr::read_unaligned(data.as_ptr().add(file_header_offset) as *const ImageFileHeader)
         };
 
-        log::debug!("File header: machine=0x{:04X}, sections={}, optional_header_size={}",
-            file_header.machine, file_header.number_of_sections, file_header.size_of_optional_header);
+        log::debug!(
+            "File header: machine=0x{:04X}, sections={}, optional_header_size={}",
+            file_header.machine,
+            file_header.number_of_sections,
+            file_header.size_of_optional_header
+        );
 
         // Determine architecture
         let is_64bit = match file_header.machine {
@@ -110,9 +116,10 @@ impl PeFile {
                 true
             }
             _ => {
-                return Err(InjectionError::UnsupportedArchitecture(
-                    format!("Machine type: 0x{:04X}", file_header.machine)
-                ));
+                return Err(InjectionError::UnsupportedArchitecture(format!(
+                    "Machine type: 0x{:04X}",
+                    file_header.machine
+                )));
             }
         };
 
@@ -122,11 +129,13 @@ impl PeFile {
         let (optional_header_64, optional_header_32) = if is_64bit {
             if optional_header_offset + mem::size_of::<ImageOptionalHeader64>() > data.len() {
                 return Err(InjectionError::InvalidPeFile(
-                    "File too small for optional header (64-bit)".to_string()
+                    "File too small for optional header (64-bit)".to_string(),
                 ));
             }
             let opt_header = unsafe {
-                *((data.as_ptr().add(optional_header_offset)) as *const ImageOptionalHeader64)
+                std::ptr::read_unaligned(
+                    data.as_ptr().add(optional_header_offset) as *const ImageOptionalHeader64
+                )
             };
             log::debug!("Optional header (64-bit): magic=0x{:04X}, entry_point=0x{:08X}, image_base=0x{:016X}",
                 opt_header.magic, opt_header.address_of_entry_point, opt_header.image_base);
@@ -134,11 +143,13 @@ impl PeFile {
         } else {
             if optional_header_offset + mem::size_of::<ImageOptionalHeader32>() > data.len() {
                 return Err(InjectionError::InvalidPeFile(
-                    "File too small for optional header (32-bit)".to_string()
+                    "File too small for optional header (32-bit)".to_string(),
                 ));
             }
             let opt_header = unsafe {
-                *((data.as_ptr().add(optional_header_offset)) as *const ImageOptionalHeader32)
+                std::ptr::read_unaligned(
+                    data.as_ptr().add(optional_header_offset) as *const ImageOptionalHeader32
+                )
             };
             log::debug!("Optional header (32-bit): magic=0x{:04X}, entry_point=0x{:08X}, image_base=0x{:08X}",
                 opt_header.magic, opt_header.address_of_entry_point, opt_header.image_base);
@@ -146,23 +157,31 @@ impl PeFile {
         };
 
         // Parse section headers
-        let section_table_offset = optional_header_offset + file_header.size_of_optional_header as usize;
+        let section_table_offset =
+            optional_header_offset + file_header.size_of_optional_header as usize;
         let mut sections = Vec::with_capacity(file_header.number_of_sections as usize);
 
-        log::debug!("Parsing {} sections at offset 0x{:08X}",
-            file_header.number_of_sections, section_table_offset);
+        log::debug!(
+            "Parsing {} sections at offset 0x{:08X}",
+            file_header.number_of_sections,
+            section_table_offset
+        );
 
         for i in 0..file_header.number_of_sections {
-            let section_offset = section_table_offset + (i as usize * mem::size_of::<ImageSectionHeader>());
+            let section_offset =
+                section_table_offset + (i as usize * mem::size_of::<ImageSectionHeader>());
 
             if section_offset + mem::size_of::<ImageSectionHeader>() > data.len() {
-                return Err(InjectionError::InvalidPeFile(
-                    format!("File too small for section header {}", i)
-                ));
+                return Err(InjectionError::InvalidPeFile(format!(
+                    "File too small for section header {}",
+                    i
+                )));
             }
 
             let section = unsafe {
-                *((data.as_ptr().add(section_offset)) as *const ImageSectionHeader)
+                std::ptr::read_unaligned(
+                    data.as_ptr().add(section_offset) as *const ImageSectionHeader
+                )
             };
 
             log::debug!("  Section {}: {:?}", i, section);
