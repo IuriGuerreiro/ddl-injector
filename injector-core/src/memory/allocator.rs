@@ -112,3 +112,107 @@ impl Drop for RemoteMemory {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use windows::Win32::System::Threading::GetCurrentProcess;
+
+    #[test]
+    fn test_allocate_in_own_process() {
+        let process = unsafe { GetCurrentProcess() };
+        let size = 4096;
+
+        let mem = RemoteMemory::allocate(process, size, PAGE_READWRITE)
+            .expect("Failed to allocate memory");
+
+        assert!(!mem.address().is_null());
+        assert_eq!(mem.size(), size);
+    }
+
+    #[test]
+    fn test_allocate_executable() {
+        let process = unsafe { GetCurrentProcess() };
+        let size = 1024;
+
+        let mem = RemoteMemory::allocate_executable(process, size)
+            .expect("Failed to allocate executable memory");
+
+        assert!(!mem.address().is_null());
+        assert_eq!(mem.size(), size);
+    }
+
+    #[test]
+    fn test_address_accessor() {
+        let process = unsafe { GetCurrentProcess() };
+        let mem = RemoteMemory::allocate(process, 512, PAGE_READWRITE)
+            .expect("Failed to allocate memory");
+
+        let addr = mem.address();
+        assert!(!addr.is_null());
+    }
+
+    #[test]
+    fn test_size_accessor() {
+        let process = unsafe { GetCurrentProcess() };
+        let expected_size = 2048;
+
+        let mem = RemoteMemory::allocate(process, expected_size, PAGE_READWRITE)
+            .expect("Failed to allocate memory");
+
+        assert_eq!(mem.size(), expected_size);
+    }
+
+    #[test]
+    fn test_as_ptr() {
+        let process = unsafe { GetCurrentProcess() };
+        let mem = RemoteMemory::allocate(process, 1024, PAGE_READWRITE)
+            .expect("Failed to allocate memory");
+
+        let ptr = mem.as_ptr();
+        assert!(!ptr.is_null());
+    }
+
+    #[test]
+    fn test_raii_cleanup() {
+        let process = unsafe { GetCurrentProcess() };
+        let addr: *mut u8;
+
+        {
+            let mem = RemoteMemory::allocate(process, 1024, PAGE_READWRITE)
+                .expect("Failed to allocate memory");
+            addr = mem.address();
+            assert!(!addr.is_null());
+        } // mem dropped here, should free memory
+
+        // Memory should be freed, but we can't easily verify this without
+        // causing a potential access violation. The test passes if no crash occurs.
+    }
+
+    #[test]
+    fn test_allocate_with_different_protections() {
+        let process = unsafe { GetCurrentProcess() };
+
+        // Test different protection flags
+        let mem_rw = RemoteMemory::allocate(process, 512, PAGE_READWRITE)
+            .expect("Failed with PAGE_READWRITE");
+        assert!(!mem_rw.address().is_null());
+
+        let mem_r = RemoteMemory::allocate(process, 512, PAGE_READONLY)
+            .expect("Failed with PAGE_READONLY");
+        assert!(!mem_r.address().is_null());
+
+        let mem_ex = RemoteMemory::allocate(process, 512, PAGE_EXECUTE_READ)
+            .expect("Failed with PAGE_EXECUTE_READ");
+        assert!(!mem_ex.address().is_null());
+    }
+
+    #[test]
+    fn test_allocate_zero_size() {
+        let process = unsafe { GetCurrentProcess() };
+
+        // Allocating 0 bytes should fail
+        let result = RemoteMemory::allocate(process, 0, PAGE_READWRITE);
+        assert!(result.is_err());
+    }
+}
