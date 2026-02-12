@@ -101,20 +101,13 @@ struct UiState {
 
 impl InjectorApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Load config
         let config = Config::load();
-
-        // Configure custom fonts if needed
         Self::configure_fonts(&cc.egui_ctx);
-
-        // Set custom style
         Self::configure_style(&cc.egui_ctx);
 
-        // Initialize logger to capture to UI
         let logs = Arc::new(Mutex::new(Vec::new()));
         Self::setup_logger(logs.clone());
 
-        // Check privilege status
         let is_admin = PrivilegeManager::is_administrator().unwrap_or(false);
         let has_debug_privilege = if is_admin {
             PrivilegeManager::try_enable_debug_privilege()
@@ -139,33 +132,44 @@ impl InjectorApp {
             is_admin,
             has_debug_privilege,
             ui_state: UiState {
-                refresh_processes: true, // Refresh on startup
+                refresh_processes: true,
                 ..Default::default()
             },
             log_viewer_state: Default::default(),
             config,
         };
 
-        // Initial process enumeration
         app.refresh_processes();
-
         app
     }
 
-    fn configure_fonts(_ctx: &egui::Context) {
-        // Use default fonts for now
-        // Custom fonts can be added here if needed
-    }
+    fn configure_fonts(_ctx: &egui::Context) {}
 
     fn configure_style(ctx: &egui::Context) {
         let mut style = (*ctx.style()).clone();
+        style.spacing.item_spacing = egui::vec2(10.0, 10.0);
+        style.spacing.window_margin = egui::Margin::same(14);
+        style.spacing.button_padding = egui::vec2(14.0, 8.0);
 
-        // Customize colors
-        style.visuals.window_rounding = 8.0.into();
-        style.visuals.widgets.noninteractive.rounding = 4.0.into();
-        style.visuals.widgets.inactive.rounding = 4.0.into();
-        style.visuals.widgets.hovered.rounding = 4.0.into();
-        style.visuals.widgets.active.rounding = 4.0.into();
+        style.visuals = egui::Visuals::dark();
+        style.visuals.override_text_color = Some(egui::Color32::from_rgb(220, 233, 255));
+        style.visuals.panel_fill = egui::Color32::from_rgb(9, 12, 18);
+        style.visuals.window_fill = egui::Color32::from_rgb(8, 10, 16);
+        style.visuals.extreme_bg_color = egui::Color32::from_rgb(4, 7, 12);
+        style.visuals.faint_bg_color = egui::Color32::from_rgb(15, 19, 30);
+
+        style.visuals.window_rounding = 16.0.into();
+        style.visuals.menu_rounding = 10.0.into();
+        style.visuals.widgets.noninteractive.rounding = 10.0.into();
+        style.visuals.widgets.inactive.rounding = 10.0.into();
+        style.visuals.widgets.hovered.rounding = 10.0.into();
+        style.visuals.widgets.active.rounding = 10.0.into();
+        style.visuals.selection.rounding = 8.0.into();
+
+        style.visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(22, 29, 44);
+        style.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(36, 55, 88);
+        style.visuals.widgets.active.bg_fill = egui::Color32::from_rgb(27, 93, 184);
+        style.visuals.selection.bg_fill = egui::Color32::from_rgb(31, 127, 252);
 
         ctx.set_style(style);
     }
@@ -173,15 +177,12 @@ impl InjectorApp {
     fn setup_logger(logs: Arc<Mutex<Vec<LogEntry>>>) {
         use crate::logging;
 
-        // Initialize dual logger (file + UI)
         if let Err(e) = logging::DualLogger::init(logs) {
             eprintln!("Failed to initialize logger: {}", e);
-            // Fallback to basic env_logger
             env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
                 .init();
         }
 
-        // Rotate old logs (keep last 10)
         if let Err(e) = logging::rotate_logs(10) {
             log::warn!("Failed to rotate logs: {}", e);
         }
@@ -225,7 +226,6 @@ impl InjectorApp {
             process.pid
         );
 
-        // Perform injection based on selected method
         let result = match self.injection_method {
             InjectionMethodType::CreateRemoteThread => {
                 let injector = CreateRemoteThreadInjector::new();
@@ -281,7 +281,6 @@ impl InjectorApp {
             }
         };
 
-        // Handle result
         match result {
             Ok(_) => {
                 log::info!("Injection successful!");
@@ -310,57 +309,51 @@ impl InjectorApp {
 
 impl eframe::App for InjectorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // Update window state in config
         let size = ctx.screen_rect().size();
         self.config.window_state.width = size.x;
         self.config.window_state.height = size.y;
 
-        // Refresh processes if flagged
         if self.ui_state.refresh_processes {
             self.refresh_processes();
         }
 
-        // Top menu bar
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Refresh Processes").clicked() {
-                        self.ui_state.refresh_processes = true;
-                        ui.close_menu();
-                    }
-                    if ui.button("Settings").clicked() {
-                        self.ui_state.show_settings = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui.button("Exit").clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
-                });
-
-                ui.menu_button("Help", |ui| {
-                    if ui.button("About").clicked() {
-                        // TODO: Show about dialog
-                        ui.close_menu();
-                    }
+        egui::TopBottomPanel::top("command_header")
+            .exact_height(62.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading(
+                        egui::RichText::new("NIGHTSHIFT // INJECTOR")
+                            .strong()
+                            .size(24.0),
+                    );
+                    ui.add_space(8.0);
+                    ui.label(egui::RichText::new("Offensive Runtime Console").italics());
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("✕ Exit").clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        if ui.button("⚙ Settings").clicked() {
+                            self.ui_state.show_settings = true;
+                        }
+                        if ui.button("⟳ Refresh").clicked() {
+                            self.ui_state.refresh_processes = true;
+                        }
+                    });
                 });
             });
-        });
 
-        // Settings window
         if self.ui_state.show_settings {
-            egui::Window::new("Settings")
+            egui::Window::new("Control Room Settings")
                 .open(&mut self.ui_state.show_settings)
-                .resizable(false)
+                .default_width(540.0)
                 .show(ctx, |ui| {
                     ui::settings::render(ui, &mut self.config, &mut self.injection_method);
                 });
         }
 
-        // Left panel - Process list
         egui::SidePanel::left("process_panel")
             .resizable(true)
-            .default_width(300.0)
+            .default_width(360.0)
             .show(ctx, |ui| {
                 ui::process_list::render(
                     ui,
@@ -372,15 +365,13 @@ impl eframe::App for InjectorApp {
                 self.config.process_filter = self.process_filter.clone();
             });
 
-        // Bottom panel - Logs
         egui::TopBottomPanel::bottom("log_panel")
             .resizable(true)
-            .default_height(200.0)
+            .default_height(240.0)
             .show(ctx, |ui| {
                 ui::log_viewer::render(ui, &self.logs, &mut self.log_viewer_state);
             });
 
-        // Central panel - Injection controls
         let action = egui::CentralPanel::default()
             .show(ctx, |ui| {
                 ui::injection_panel::render(
@@ -398,7 +389,6 @@ impl eframe::App for InjectorApp {
             })
             .inner;
 
-        // Handle injection panel actions
         match action {
             ui::injection_panel::InjectionPanelAction::OpenFileDialog => {
                 self.open_dll_file_dialog();
@@ -415,7 +405,6 @@ impl eframe::App for InjectorApp {
     }
 
     fn save(&mut self, _storage: &mut dyn eframe::Storage) {
-        // Save config on exit
         if let Err(e) = self.config.save() {
             log::error!("Failed to save config: {}", e);
         }

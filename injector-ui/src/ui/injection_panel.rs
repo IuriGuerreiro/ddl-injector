@@ -28,218 +28,180 @@ pub fn render(
     recent_dlls: &[PathBuf],
 ) -> InjectionPanelAction {
     let mut action = InjectionPanelAction::None;
-    ui.heading("DLL Injection");
 
-    // Privilege status display
-    ui.add_space(5.0);
-    ui.group(|ui| {
-        ui.label("Privilege Status:");
+    let frame = egui::Frame::new()
+        .fill(egui::Color32::from_rgb(11, 16, 27))
+        .inner_margin(egui::Margin::same(18))
+        .corner_radius(egui::CornerRadius::same(16));
 
-        ui.horizontal(|ui| {
-            if is_admin {
-                ui.colored_label(egui::Color32::GREEN, "✓ Administrator");
-            } else {
-                ui.colored_label(egui::Color32::RED, "✗ Not Administrator");
-            }
-        });
+    frame.show(ui, |ui| {
+        ui.vertical(|ui| {
+            ui.heading(egui::RichText::new("PAYLOAD ORCHESTRATOR").size(24.0));
+            ui.label(
+                egui::RichText::new("Neon tactical injection suite for live process manipulation")
+                    .color(egui::Color32::from_rgb(144, 172, 232)),
+            );
+            ui.add_space(12.0);
 
-        ui.horizontal(|ui| {
-            if has_debug_privilege {
-                ui.colored_label(egui::Color32::GREEN, "✓ SeDebugPrivilege");
-            } else if is_admin {
-                ui.colored_label(egui::Color32::YELLOW, "⚠ SeDebugPrivilege failed to enable");
-            } else {
-                ui.colored_label(egui::Color32::YELLOW, "⚠ SeDebugPrivilege not available");
-            }
-        });
-
-        if !is_admin {
-            ui.add_space(5.0);
-            ui.small("Run as administrator to inject into protected processes");
-        }
-    });
-
-    ui.add_space(10.0);
-
-    // Selected process info
-    ui.group(|ui| {
-        ui.label("Target Process:");
-        if let Some(idx) = selected_idx {
-            if let Some(process) = processes.get(idx) {
-                ui.horizontal(|ui| {
-                    ui.label("📋");
-                    ui.label(&process.name);
+            ui.columns(2, |columns| {
+                columns[0].group(|ui| {
+                    ui.label(egui::RichText::new("Privileges").strong());
+                    status_chip(ui, "ADMIN", is_admin);
+                    status_chip(ui, "SeDebugPrivilege", has_debug_privilege);
+                    if !is_admin {
+                        ui.small(
+                            egui::RichText::new("Elevation required for hardened targets")
+                                .color(egui::Color32::from_rgb(248, 181, 97)),
+                        );
+                    }
                 });
-                ui.horizontal(|ui| {
-                    ui.label("🆔");
-                    ui.label(format!("PID: {}", process.pid));
-                });
-                ui.horizontal(|ui| {
-                    ui.label("🧵");
-                    ui.label(format!("Threads: {}", process.thread_count));
-                });
-            } else {
-                ui.colored_label(egui::Color32::RED, "Invalid selection");
-            }
-        } else {
-            ui.colored_label(egui::Color32::GRAY, "No process selected");
-        }
-    });
 
-    ui.add_space(10.0);
-
-    // DLL selection
-    ui.group(|ui| {
-        ui.label("DLL to Inject:");
-
-        ui.horizontal(|ui| {
-            if ui.button("📁 Browse...").clicked() {
-                action = InjectionPanelAction::OpenFileDialog;
-            }
-
-            // Recent DLLs dropdown
-            if !recent_dlls.is_empty() {
-                egui::ComboBox::from_id_salt("recent_dlls")
-                    .selected_text("Recent...")
-                    .show_ui(ui, |ui| {
-                        for recent_dll in recent_dlls {
-                            let file_name = recent_dll
-                                .file_name()
-                                .map(|n| n.to_string_lossy().to_string())
-                                .unwrap_or_else(|| "Unknown".to_string());
-
-                            if ui.selectable_label(false, &file_name).clicked() {
-                                action = InjectionPanelAction::SelectRecentDll(recent_dll.clone());
-                            }
+                columns[1].group(|ui| {
+                    ui.label(egui::RichText::new("Target").strong());
+                    if let Some(idx) = selected_idx {
+                        if let Some(process) = processes.get(idx) {
+                            ui.label(
+                                egui::RichText::new(&process.name)
+                                    .size(20.0)
+                                    .color(egui::Color32::from_rgb(112, 208, 255)),
+                            );
+                            ui.small(format!("PID {}", process.pid));
+                            ui.small(format!("{} threads", process.thread_count));
+                        } else {
+                            ui.colored_label(egui::Color32::RED, "Invalid process selection");
                         }
-                    });
-            }
+                    } else {
+                        ui.colored_label(egui::Color32::from_gray(140), "No process selected");
+                    }
+                });
+            });
 
-            if let Some(path) = dll_path {
-                ui.label(path.file_name().unwrap().to_string_lossy().to_string());
-            } else {
-                ui.colored_label(egui::Color32::GRAY, "No DLL selected");
-            }
-        });
+            ui.add_space(12.0);
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("Payload Path").strong());
+                ui.horizontal(|ui| {
+                    if ui.button("BROWSE FILE").clicked() {
+                        action = InjectionPanelAction::OpenFileDialog;
+                    }
+                    if !recent_dlls.is_empty() {
+                        egui::ComboBox::from_id_salt("recent_dlls")
+                            .selected_text("LOAD RECENT")
+                            .show_ui(ui, |ui| {
+                                for recent_dll in recent_dlls {
+                                    let file_name = recent_dll
+                                        .file_name()
+                                        .map(|n| n.to_string_lossy().to_string())
+                                        .unwrap_or_else(|| "Unknown".to_string());
 
-        if let Some(path) = dll_path {
-            ui.small(path.to_string_lossy().to_string());
+                                    if ui.button(file_name).clicked() {
+                                        action = InjectionPanelAction::SelectRecentDll(
+                                            recent_dll.clone(),
+                                        );
+                                    }
+                                }
+                            });
+                    }
+                });
 
-            // Validate DLL
-            if !path.exists() {
-                ui.colored_label(egui::Color32::RED, "⚠ File does not exist");
-            } else if !path.is_absolute() {
-                ui.colored_label(egui::Color32::RED, "⚠ Path must be absolute");
-            } else if path.extension().and_then(|s| s.to_str()) != Some("dll") {
-                ui.colored_label(egui::Color32::YELLOW, "⚠ File extension is not .dll");
-            }
-        }
-    });
-
-    ui.add_space(10.0);
-
-    // Injection method selection
-    ui.group(|ui| {
-        ui.label("Injection Method:");
-
-        egui::ComboBox::from_id_salt("method_selector")
-            .selected_text(injection_method.name())
-            .show_ui(ui, |ui| {
-                for method in InjectionMethodType::all() {
-                    ui.selectable_value(injection_method, *method, method.name());
+                if let Some(path) = dll_path {
+                    ui.label(path.display().to_string());
+                    if !path.exists() {
+                        ui.colored_label(egui::Color32::RED, "Path does not exist");
+                    } else if path.extension().and_then(|s| s.to_str()) != Some("dll") {
+                        ui.colored_label(egui::Color32::YELLOW, "Extension is not .dll");
+                    }
+                } else {
+                    ui.colored_label(egui::Color32::from_gray(130), "No DLL selected yet");
                 }
             });
 
-        ui.small(injection_method.description());
-
-        // Show additional info for specific methods
-        match injection_method {
-            InjectionMethodType::ManualMap => {
-                ui.add_space(5.0);
-                ui.colored_label(
-                    egui::Color32::from_rgb(100, 200, 255),
-                    "🔒 Stealth Features:",
+            ui.add_space(12.0);
+            ui.group(|ui| {
+                ui.label(egui::RichText::new("Injection Vector").strong());
+                egui::ComboBox::from_id_salt("method_selector")
+                    .selected_text(injection_method.name())
+                    .show_ui(ui, |ui| {
+                        for method in InjectionMethodType::all() {
+                            ui.selectable_value(injection_method, *method, method.name());
+                        }
+                    });
+                ui.small(
+                    egui::RichText::new(injection_method.description())
+                        .color(egui::Color32::from_rgb(143, 170, 221)),
                 );
-                ui.small("• Bypasses PEB module list");
-                ui.small("• Not visible in most module enumerators");
+            });
+
+            ui.add_space(18.0);
+            ui.horizontal(|ui| {
+                let can_inject = selected_idx.is_some() && dll_path.is_some() && !injecting;
+                let pulse = ui
+                    .ctx()
+                    .animate_bool(egui::Id::new("inject_button_pulse"), injecting);
+                let pulse_tint = (120.0 + pulse * 90.0) as u8;
+
+                let inject_btn = egui::Button::new(if injecting {
+                    egui::RichText::new("INJECTING...").strong()
+                } else {
+                    egui::RichText::new("EXECUTE INJECTION").strong()
+                })
+                .fill(egui::Color32::from_rgb(40, pulse_tint, 255))
+                .min_size(egui::vec2(260.0, 48.0));
+
+                if ui.add_enabled(can_inject, inject_btn).clicked() {
+                    action = InjectionPanelAction::PerformInjection;
+                }
+
+                if !can_inject {
+                    ui.small(
+                        egui::RichText::new(
+                            "Waiting for process + payload selection before deployment",
+                        )
+                        .color(egui::Color32::from_gray(145)),
+                    );
+                }
+            });
+
+            if let Some(error) = last_error {
+                ui.add_space(12.0);
+                let warning_frame = egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(64, 18, 24))
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(214, 72, 98)))
+                    .inner_margin(egui::Margin::same(10))
+                    .corner_radius(egui::CornerRadius::same(10));
+                warning_frame.show(ui, |ui| {
+                    ui.label(
+                        egui::RichText::new("INJECTION FAULT")
+                            .strong()
+                            .color(egui::Color32::from_rgb(255, 129, 145)),
+                    );
+                    ui.label(error);
+                });
             }
-            InjectionMethodType::QueueUserApc => {
-                ui.add_space(5.0);
-                ui.colored_label(egui::Color32::YELLOW, "⚠ Note:");
-                ui.small("• Requires alertable threads to execute");
-                ui.small("• Injection may be delayed until a thread sleeps");
-            }
-            InjectionMethodType::NtCreateThreadEx => {
-                ui.add_space(5.0);
-                ui.colored_label(egui::Color32::from_rgb(100, 255, 150), "🚀 Advanced:");
-                ui.small("• Uses undocumented native ntdll API");
-                ui.small("• Bypasses some CreateRemoteThread hooks");
-            }
-            _ => {}
-        }
-    });
-
-    ui.add_space(20.0);
-
-    // Inject button
-    ui.vertical_centered(|ui| {
-        let has_process = selected_idx.is_some();
-        let has_dll = dll_path.is_some();
-        let can_inject = has_process && has_dll && !injecting;
-
-        // Debug info for troubleshooting
-        if !can_inject {
-            ui.add_space(5.0);
-            ui.label("Button disabled because:");
-            if !has_process {
-                ui.small("  ❌ No process selected");
-            }
-            if !has_dll {
-                ui.small("  ❌ No DLL selected");
-            }
-            if injecting {
-                ui.small("  ⏳ Injection in progress");
-            }
-            ui.add_space(5.0);
-        }
-
-        let button = egui::Button::new(if injecting {
-            "Injecting..."
-        } else {
-            "💉 Inject"
-        })
-        .min_size(egui::vec2(200.0, 40.0));
-
-        if ui.add_enabled(can_inject, button).clicked() {
-            action = InjectionPanelAction::PerformInjection;
-        }
-    });
-
-    ui.add_space(10.0);
-
-    // Error display
-    if let Some(error) = last_error {
-        ui.group(|ui| {
-            ui.colored_label(egui::Color32::RED, "❌ Error:");
-            ui.label(error);
         });
-    }
-
-    ui.add_space(10.0);
-
-    // Information panel
-    ui.group(|ui| {
-        ui.label("ℹ Information:");
-        ui.small("1. Select a target process from the list");
-        ui.small("2. Choose a DLL file to inject");
-        ui.small("3. Select an injection method");
-        ui.small("4. Click 'Inject' to start");
-        ui.add_space(5.0);
-        ui.colored_label(
-            egui::Color32::YELLOW,
-            "⚠ Administrator privileges may be required",
-        );
     });
 
     action
+}
+
+fn status_chip(ui: &mut egui::Ui, label: &str, active: bool) {
+    let (fill, text) = if active {
+        (
+            egui::Color32::from_rgb(20, 99, 70),
+            egui::RichText::new(format!("{}: ACTIVE", label)).color(egui::Color32::LIGHT_GREEN),
+        )
+    } else {
+        (
+            egui::Color32::from_rgb(76, 38, 24),
+            egui::RichText::new(format!("{}: OFFLINE", label))
+                .color(egui::Color32::from_rgb(255, 177, 139)),
+        )
+    };
+
+    egui::Frame::new()
+        .fill(fill)
+        .inner_margin(egui::Margin::symmetric(8, 4))
+        .corner_radius(egui::CornerRadius::same(6))
+        .show(ui, |ui| {
+            ui.label(text);
+        });
 }
