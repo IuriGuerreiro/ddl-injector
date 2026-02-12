@@ -2,7 +2,7 @@
 
 use std::mem;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
+use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress, LoadLibraryA};
 use windows::core::PCSTR;
 use crate::InjectionError;
 use crate::memory::write_memory;
@@ -58,10 +58,35 @@ pub fn resolve_imports(
         let dll_name = pe.read_string_at_rva(descriptor.name)?;
         log::debug!("Processing imports from: {}", dll_name);
 
+        // Create null-terminated string for Windows API
+        let dll_name_cstr = std::ffi::CString::new(dll_name.as_str())
+            .map_err(|_| InjectionError::ImportModuleNotFound(dll_name.clone()))?;
+
         // Load the DLL in our process to get function addresses
+        // Try GetModuleHandleA first, if it fails, use LoadLibraryA
         let dll_handle = unsafe {
-            GetModuleHandleA(PCSTR::from_raw(dll_name.as_ptr()))
-                .map_err(|_| InjectionError::ImportModuleNotFound(dll_name.clone()))?
+            match GetModuleHandleA(PCSTR::from_raw(dll_name_cstr.as_ptr() as *const u8)) {
+                Ok(handle) => {
+                    log::debug!("  DLL already loaded: {}", dll_name);
+                    handle
+                }
+                Err(e) => {
+                    log::debug!("  DLL not loaded ({}), attempting to load: {}", e, dll_name);
+                    match LoadLibraryA(PCSTR::from_raw(dll_name_cstr.as_ptr() as *const u8)) {
+                        Ok(handle) => {
+                            log::debug!("  Successfully loaded DLL: {}", dll_name);
+                            handle
+                        }
+                        Err(e) => {
+                            log::error!("  Failed to load DLL '{}': {}", dll_name, e);
+                            return Err(InjectionError::ImportModuleNotFound(format!(
+                                "{} (LoadLibrary failed: {})",
+                                dll_name, e
+                            )));
+                        }
+                    }
+                }
+            }
         };
 
         // Determine which thunk array to use
