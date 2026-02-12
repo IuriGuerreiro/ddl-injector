@@ -1,6 +1,6 @@
-//! UI components module
+//! UI components.
 
-mod process_list;
-mod injection_panel;
-mod log_viewer;
-mod settings;
+pub mod process_list;
+pub mod injection_panel;
+pub mod log_viewer;
+pub mod settings;
