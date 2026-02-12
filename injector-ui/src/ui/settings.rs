@@ -5,13 +5,16 @@ use crate::config::Config;
 use eframe::egui;
 
 pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut InjectionMethodType) {
-    ui.heading("Settings");
+    ui.label(
+        egui::RichText::new("CONTROL ROOM SETTINGS")
+            .heading()
+            .color(egui::Color32::from_rgb(243, 255, 115)),
+    );
 
     ui.add_space(10.0);
 
-    // Preferred injection method
     ui.group(|ui| {
-        ui.label("Default Injection Method:");
+        ui.label("Default injection profile");
 
         let mut method = config.preferred_method;
 
@@ -46,11 +49,10 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
         }
     });
 
-    ui.add_space(10.0);
+    ui.add_space(8.0);
 
-    // Auto-refresh interval
     ui.group(|ui| {
-        ui.label("Auto-Refresh Process List:");
+        ui.label("Auto refresh frequency");
 
         ui.horizontal(|ui| {
             ui.add(
@@ -60,23 +62,20 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
             );
 
             if config.auto_refresh_interval == 0 {
-                ui.label("(disabled)");
+                ui.label("disabled");
             }
         });
-
-        ui.small("Set to 0 to disable automatic refresh");
     });
 
-    ui.add_space(10.0);
+    ui.add_space(8.0);
 
-    // Recent DLLs
     ui.group(|ui| {
-        ui.label("Recent DLLs:");
+        ui.label("Recent payload history");
 
         ui.horizontal(|ui| {
-            ui.label(format!("{} recent DLLs", config.recent_dlls.len()));
+            ui.label(format!("{} entries", config.recent_dlls.len()));
 
-            if ui.button("Clear").clicked() {
+            if ui.button("Clear list").clicked() {
                 config.clear_recent();
             }
         });
@@ -96,17 +95,16 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
             });
     });
 
-    ui.add_space(10.0);
+    ui.add_space(8.0);
 
-    // Config file location
     ui.group(|ui| {
-        ui.label("Configuration:");
+        ui.label("Configuration storage");
 
         let config_path = Config::config_path();
-        ui.small(format!("Location: {}", config_path.display()));
+        ui.small(format!("Path: {}", config_path.display()));
 
         ui.horizontal(|ui| {
-            if ui.button("Save Now").clicked() {
+            if ui.button("Save now").clicked() {
                 if let Err(e) = config.save() {
                     log::error!("Failed to save config: {}", e);
                 } else {
@@ -114,7 +112,7 @@ pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut Injec
                 }
             }
 
-            if ui.button("Reset to Defaults").clicked() {
+            if ui.button("Reset defaults").clicked() {
                 *config = Config::default();
                 log::info!("Configuration reset to defaults");
             }

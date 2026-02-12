@@ -5,27 +5,19 @@ use chrono::{DateTime, Local};
 use eframe::egui;
 use std::sync::{Arc, Mutex};
 
-/// State for the log viewer UI.
 #[derive(Default)]
 pub struct LogViewerState {
-    /// Filter by log level
     pub filter_error: bool,
     pub filter_warn: bool,
     pub filter_info: bool,
     pub filter_debug: bool,
     pub filter_trace: bool,
-
-    /// Search text
     pub search_text: String,
-
-    /// Auto-scroll enabled
     pub auto_scroll: bool,
 }
 
 impl LogViewerState {
-    /// Check if a log entry passes the level filter.
     fn passes_level_filter(&self, level: log::Level) -> bool {
-        // If no filters are enabled, show all
         if !self.filter_error
             && !self.filter_warn
             && !self.filter_info
@@ -44,7 +36,6 @@ impl LogViewerState {
         }
     }
 
-    /// Check if a log entry passes the search filter.
     fn passes_search_filter(&self, entry: &LogEntry) -> bool {
         if self.search_text.is_empty() {
             return true;
@@ -55,70 +46,62 @@ impl LogViewerState {
             || entry.target.to_lowercase().contains(&search_lower)
     }
 
-    /// Check if a log entry passes all filters.
     pub fn passes_filters(&self, entry: &LogEntry) -> bool {
         self.passes_level_filter(entry.level) && self.passes_search_filter(entry)
     }
 }
 
-/// Render the log viewer UI.
 pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut LogViewerState) {
-    ui.heading("Logs");
+    ui.label(
+        egui::RichText::new("EVENT STREAM")
+            .heading()
+            .color(egui::Color32::from_rgb(120, 245, 226)),
+    );
 
-    // Control bar
-    ui.horizontal(|ui| {
-        // Clear button
-        if ui.button("Clear").clicked() {
+    ui.horizontal_wrapped(|ui| {
+        if ui.button("CLEAR").clicked() {
             if let Ok(mut log_vec) = logs.lock() {
                 log_vec.clear();
             }
         }
 
-        // Export button
-        if ui.button("Export...").clicked() {
+        if ui.button("EXPORT").clicked() {
             export_logs(logs);
         }
 
         ui.separator();
-
-        // Level filter checkboxes
-        ui.label("Filters:");
-        ui.checkbox(&mut state.filter_error, "Error");
-        ui.checkbox(&mut state.filter_warn, "Warn");
-        ui.checkbox(&mut state.filter_info, "Info");
-        ui.checkbox(&mut state.filter_debug, "Debug");
-        ui.checkbox(&mut state.filter_trace, "Trace");
+        ui.checkbox(&mut state.filter_error, "ERR");
+        ui.checkbox(&mut state.filter_warn, "WRN");
+        ui.checkbox(&mut state.filter_info, "INF");
+        ui.checkbox(&mut state.filter_debug, "DBG");
+        ui.checkbox(&mut state.filter_trace, "TRC");
 
         ui.separator();
+        ui.label("Search");
+        ui.add_sized(
+            [200.0, 24.0],
+            egui::TextEdit::singleline(&mut state.search_text).hint_text("message / target"),
+        );
 
-        // Search box
-        ui.label("Search:");
-        ui.text_edit_singleline(&mut state.search_text);
-
-        ui.separator();
-
-        // Auto-scroll toggle
-        ui.checkbox(&mut state.auto_scroll, "Auto-scroll");
+        ui.checkbox(&mut state.auto_scroll, "Pin to bottom");
     });
 
-    // Stats display
     if let Ok(log_vec) = logs.lock() {
         let filtered_count = log_vec.iter().filter(|e| state.passes_filters(e)).count();
-        let total_count = log_vec.len();
-
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "Showing {} of {} messages",
-                filtered_count, total_count
-            ));
-        });
+        ui.label(
+            egui::RichText::new(format!(
+                "{} visible / {} total entries",
+                filtered_count,
+                log_vec.len()
+            ))
+            .small()
+            .color(egui::Color32::from_rgb(145, 174, 169)),
+        );
     }
 
     ui.separator();
 
-    // Scrollable log area
     let scroll_area = egui::ScrollArea::vertical().auto_shrink([false, false]);
-
     let scroll_area = if state.auto_scroll {
         scroll_area.stick_to_bottom(true)
     } else {
@@ -131,48 +114,56 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
                 log_vec.iter().filter(|e| state.passes_filters(e)).collect();
 
             for entry in &filtered_logs {
-                ui.horizontal(|ui| {
-                    // Timestamp
-                    let datetime: DateTime<Local> = entry.timestamp.into();
-                    let time_str = datetime.format("%H:%M:%S").to_string();
-                    ui.label(egui::RichText::new(time_str).color(egui::Color32::DARK_GRAY));
+                let (accent, level_str) = match entry.level {
+                    log::Level::Error => (egui::Color32::from_rgb(255, 88, 88), "ERROR"),
+                    log::Level::Warn => (egui::Color32::from_rgb(255, 201, 110), "WARN "),
+                    log::Level::Info => (egui::Color32::from_rgb(124, 255, 157), "INFO "),
+                    log::Level::Debug => (egui::Color32::from_rgb(150, 188, 186), "DEBUG"),
+                    log::Level::Trace => (egui::Color32::from_rgb(125, 143, 141), "TRACE"),
+                };
 
-                    // Level indicator with color
-                    let (color, level_str) = match entry.level {
-                        log::Level::Error => (egui::Color32::RED, "ERROR"),
-                        log::Level::Warn => (egui::Color32::YELLOW, "WARN "),
-                        log::Level::Info => (egui::Color32::GREEN, "INFO "),
-                        log::Level::Debug => (egui::Color32::GRAY, "DEBUG"),
-                        log::Level::Trace => (egui::Color32::DARK_GRAY, "TRACE"),
-                    };
+                egui::Frame::new()
+                    .fill(egui::Color32::from_rgb(7, 16, 24))
+                    .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(28, 67, 75)))
+                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            let datetime: DateTime<Local> = entry.timestamp.into();
+                            let time_str = datetime.format("%H:%M:%S").to_string();
+                            ui.label(
+                                egui::RichText::new(time_str)
+                                    .monospace()
+                                    .color(egui::Color32::from_rgb(112, 131, 133)),
+                            );
 
-                    ui.colored_label(color, level_str);
+                            ui.colored_label(accent, level_str);
 
-                    // Target (if not empty)
-                    if !entry.target.is_empty() {
-                        ui.label(
-                            egui::RichText::new(format!("[{}]", entry.target))
-                                .color(egui::Color32::LIGHT_BLUE),
-                        );
-                    }
+                            if !entry.target.is_empty() {
+                                ui.label(
+                                    egui::RichText::new(format!("[{}]", entry.target))
+                                        .color(egui::Color32::from_rgb(115, 208, 255)),
+                                );
+                            }
 
-                    // Message
-                    ui.label(&entry.message);
-                });
+                            ui.label(&entry.message);
+                        });
+                    });
+                ui.add_space(3.0);
             }
 
             if filtered_logs.is_empty() && log_vec.is_empty() {
-                ui.colored_label(egui::Color32::GRAY, "No log messages");
+                ui.colored_label(egui::Color32::from_rgb(130, 140, 140), "No events yet");
             } else if filtered_logs.is_empty() {
-                ui.colored_label(egui::Color32::GRAY, "No messages match current filters");
+                ui.colored_label(
+                    egui::Color32::from_rgb(130, 140, 140),
+                    "No events match current filters",
+                );
             }
         }
     });
 }
 
-/// Export logs to a file.
 fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
-    // Open file dialog
     let file_path = rfd::FileDialog::new()
         .set_file_name("injector_logs.txt")
         .add_filter("Text Files", &["txt"])
@@ -180,7 +171,6 @@ fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
         .save_file();
 
     if let Some(path) = file_path {
-        // Collect all logs
         if let Ok(log_vec) = logs.lock() {
             let mut content = String::new();
 
@@ -199,7 +189,6 @@ fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
                 }
             }
 
-            // Write to file
             if let Err(e) = std::fs::write(&path, content) {
                 log::error!("Failed to export logs: {}", e);
             } else {
