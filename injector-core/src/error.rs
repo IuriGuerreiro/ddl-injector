@@ -31,6 +31,18 @@ pub enum ProcessError {
 
     #[error("Failed to open thread")]
     OpenThreadFailed(#[source] std::io::Error),
+
+    #[error("Failed to suspend thread")]
+    ThreadSuspendFailed(#[source] std::io::Error),
+
+    #[error("Failed to get thread context")]
+    ThreadContextFailed(#[source] std::io::Error),
+
+    #[error("Failed to set thread context")]
+    ThreadSetContextFailed(#[source] std::io::Error),
+
+    #[error("Failed to resume thread")]
+    ThreadResumeFailed(#[source] std::io::Error),
 }
 
 /// Errors related to DLL injection operations
@@ -104,6 +116,39 @@ pub enum InjectionError {
 
     #[error("DLL entry point returned FALSE")]
     DllMainFailed,
+
+    #[error("Failed to create section")]
+    SectionCreationFailed(#[source] std::io::Error),
+
+    #[error("Failed to map section view")]
+    SectionMappingFailed(#[source] std::io::Error),
+
+    #[error("NtMapViewOfSection not found in ntdll.dll")]
+    NtMapViewOfSectionNotFound,
+
+    #[error("NtCreateSection not found in ntdll.dll")]
+    NtCreateSectionNotFound,
+
+    #[error("NtUnmapViewOfSection not found in ntdll.dll")]
+    NtUnmapViewOfSectionNotFound,
+
+    #[error("Failed to queue APC")]
+    ApcQueueFailed(#[source] std::io::Error),
+
+    #[error("Failed to create process")]
+    ProcessCreationFailed(#[source] std::io::Error),
+
+    #[error("Failed to generate shellcode")]
+    ShellcodeGenerationFailed(String),
+
+    #[error("Reflective loader failed: {0}")]
+    ReflectiveLoaderFailed(String),
+
+    #[error("Invalid position-independent code: {0}")]
+    PositionIndependentCodeInvalid(String),
+
+    #[error("No suitable threads found for injection")]
+    NoSuitableThreads,
 
     #[error("IO error")]
     Io(#[from] std::io::Error),

@@ -35,6 +35,26 @@ enum InjectionMethodType {
     /// Manual mapping injection (stealth method)
     #[value(name = "manual-map")]
     ManualMap,
+
+    /// QueueUserAPC injection (APC-based method)
+    #[value(name = "queue-user-apc")]
+    QueueUserApc,
+
+    /// NtCreateThreadEx injection (native API method)
+    #[value(name = "nt-create-thread-ex")]
+    NtCreateThreadEx,
+
+    /// Section Mapping injection (memory-efficient method) - STABLE
+    #[value(name = "section-mapping")]
+    SectionMapping,
+
+    /// Thread Hijacking injection (thread context manipulation) - EXPERIMENTAL
+    #[value(name = "thread-hijacking")]
+    ThreadHijacking,
+
+    /// Reflective Loader injection (PIC loader, no LoadLibrary) - RESEARCH
+    #[value(name = "reflective-loader")]
+    ReflectiveLoader,
 }
 
 fn main() {
@@ -101,67 +121,86 @@ fn main() {
         println!("   Path: {}", path.display());
     }
 
+    // Helper function to perform injection with common logic
+    fn perform_injection<I: InjectionMethod>(
+        injector: I,
+        target_pid: u32,
+        dll_path: &std::path::Path,
+        extra_info: Option<&str>,
+    ) -> Result<(), InjectionError> {
+        println!("\n💉 Using injection method: {}", injector.name());
+        println!("   DLL path: {}", dll_path.display());
+        if let Some(info) = extra_info {
+            println!("   {}", info);
+        }
+
+        // Check if DLL exists
+        if !dll_path.exists() {
+            eprintln!("\n❌ DLL file not found: {}", dll_path.display());
+            std::process::exit(1);
+        }
+
+        // Open process handle
+        println!("\n🔓 Opening process handle...");
+        let handle = match ProcessHandle::open(target_pid, injector.required_access()) {
+            Ok(h) => {
+                println!("✓ Process handle opened successfully");
+                h
+            }
+            Err(e) => {
+                eprintln!("❌ Failed to open process: {}", e);
+                eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
+                std::process::exit(1);
+            }
+        };
+
+        // Perform injection
+        println!("\n💉 Injecting DLL...");
+        injector.inject(&handle, dll_path)
+    }
+
     // Create the appropriate injector based on method
     let result = match args.method {
         InjectionMethodType::CreateRemoteThread => {
-            let injector = CreateRemoteThreadInjector::new();
-            println!("\n💉 Using injection method: {}", injector.name());
-            println!("   DLL path: {}", dll_path.display());
-
-            // Check if DLL exists
-            if !dll_path.exists() {
-                eprintln!("\n❌ DLL file not found: {}", dll_path.display());
-                std::process::exit(1);
-            }
-
-            // Open process handle
-            println!("\n🔓 Opening process handle...");
-            let handle = match ProcessHandle::open(target.pid, injector.required_access()) {
-                Ok(h) => {
-                    println!("✓ Process handle opened successfully");
-                    h
-                }
-                Err(e) => {
-                    eprintln!("❌ Failed to open process: {}", e);
-                    eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
-                    std::process::exit(1);
-                }
-            };
-
-            // Perform injection
-            println!("\n💉 Injecting DLL...");
-            injector.inject(&handle, &dll_path)
+            perform_injection(CreateRemoteThreadInjector::new(), target.pid, &dll_path, None)
         }
         InjectionMethodType::ManualMap => {
-            let injector = ManualMapInjector;
-            println!("\n💉 Using injection method: {}", injector.name());
-            println!("   DLL path: {}", dll_path.display());
-            println!("   ⚠️  Advanced stealth injection - DLL will not appear in PEB module list");
-
-            // Check if DLL exists
-            if !dll_path.exists() {
-                eprintln!("\n❌ DLL file not found: {}", dll_path.display());
-                std::process::exit(1);
-            }
-
-            // Open process handle
-            println!("\n🔓 Opening process handle...");
-            let handle = match ProcessHandle::open(target.pid, injector.required_access()) {
-                Ok(h) => {
-                    println!("✓ Process handle opened successfully");
-                    h
-                }
-                Err(e) => {
-                    eprintln!("❌ Failed to open process: {}", e);
-                    eprintln!("\n💡 Tip: You may need to run as Administrator for some processes");
-                    std::process::exit(1);
-                }
-            };
-
-            // Perform injection
-            println!("\n💉 Injecting DLL...");
-            println!("   This may take a moment as the DLL is manually mapped...");
-            injector.inject(&handle, &dll_path)
+            perform_injection(
+                ManualMapInjector,
+                target.pid,
+                &dll_path,
+                Some("⚠️  Advanced stealth injection - DLL will not appear in PEB module list"),
+            )
+        }
+        InjectionMethodType::QueueUserApc => {
+            perform_injection(QueueUserApcInjector::new(), target.pid, &dll_path, None)
+        }
+        InjectionMethodType::NtCreateThreadEx => {
+            perform_injection(NtCreateThreadExInjector::new(), target.pid, &dll_path, None)
+        }
+        InjectionMethodType::SectionMapping => {
+            perform_injection(
+                SectionMappingInjector::new(),
+                target.pid,
+                &dll_path,
+                Some("✨ STABLE - Memory-efficient section-based injection"),
+            )
+        }
+        InjectionMethodType::ThreadHijacking => {
+            perform_injection(
+                ThreadHijackingInjector::new(),
+                target.pid,
+                &dll_path,
+                Some("⚠️  EXPERIMENTAL - Hijacks existing thread (higher crash risk)"),
+            )
+        }
+        InjectionMethodType::ReflectiveLoader => {
+            perform_injection(
+                ReflectiveLoaderInjector::new(),
+                target.pid,
+                &dll_path,
+                Some("🔬 RESEARCH - Advanced PIC loader (not fully implemented)"),
+            )
         }
     };
 

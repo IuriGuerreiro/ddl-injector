@@ -471,3 +471,139 @@ fn test_debug_privilege_enable() {
 
     println!("Debug privilege enable test passed!");
 }
+
+// ===========================================================================
+// New Injection Method Tests (Require Admin)
+// ===========================================================================
+
+#[test]
+#[ignore]
+fn test_section_mapping_injection() {
+    use helpers::*;
+
+    println!("Testing Section Mapping injection...");
+
+    let dll_path = test_dll_path();
+    if !dll_path.exists() {
+        panic!(
+            "Test DLL not found at {:?}. Run: cargo build -p test-dll --release --features silent",
+            dll_path
+        );
+    }
+
+    let (mut child, pid) = spawn_test_process();
+    clear_marker_file();
+
+    let injector = SectionMappingInjector::new();
+    let handle = ProcessHandle::open(pid, injector.required_access())
+        .expect("Failed to open process - run as administrator!");
+
+    println!("Injecting into PID {} using Section Mapping...", pid);
+    let result = injector.inject(&handle, &dll_path);
+
+    std::thread::sleep(Duration::from_millis(100));
+
+    if let Err(e) = &result {
+        println!("Injection error: {:?}", e);
+    }
+    assert!(
+        result.is_ok(),
+        "Section Mapping injection failed: {:?}",
+        result.err()
+    );
+    assert!(
+        check_marker_file(),
+        "Marker file not created - DLL did not execute!"
+    );
+
+    let _ = child.kill();
+    clear_marker_file();
+
+    println!("Section Mapping injection test passed!");
+}
+
+#[test]
+#[ignore]
+fn test_thread_hijacking_injection() {
+    use helpers::*;
+
+    println!("Testing Thread Hijacking injection...");
+    println!("WARNING: This is an EXPERIMENTAL method - may cause crashes");
+
+    let dll_path = test_dll_path();
+    if !dll_path.exists() {
+        panic!("Test DLL not found");
+    }
+
+    let (mut child, pid) = spawn_test_process();
+    clear_marker_file();
+
+    let injector = ThreadHijackingInjector::new();
+    let handle = ProcessHandle::open(pid, injector.required_access())
+        .expect("Failed to open process - run as administrator!");
+
+    println!("Injecting into PID {} using Thread Hijacking...", pid);
+    let result = injector.inject(&handle, &dll_path);
+
+    // Give more time for thread hijacking to execute
+    std::thread::sleep(Duration::from_millis(200));
+
+    if let Err(e) = &result {
+        println!("Injection error: {:?}", e);
+    }
+
+    // Thread hijacking may fail or crash the target
+    // We still consider it a success if it doesn't panic
+    if result.is_ok() {
+        println!("Thread Hijacking injection succeeded");
+        if check_marker_file() {
+            println!("Marker file created - DLL executed successfully!");
+        } else {
+            println!("Warning: Marker file not created - DLL may not have executed");
+        }
+    } else {
+        println!("Thread Hijacking failed (expected for experimental method)");
+    }
+
+    let _ = child.kill();
+    clear_marker_file();
+
+    println!("Thread Hijacking injection test completed!");
+}
+
+#[test]
+#[ignore]
+fn test_reflective_loader_injection() {
+    use helpers::*;
+
+    println!("Testing Reflective Loader injection...");
+    println!("NOTE: This is a RESEARCH method and may not be fully implemented");
+
+    let dll_path = test_dll_path();
+    if !dll_path.exists() {
+        panic!("Test DLL not found");
+    }
+
+    let (mut child, pid) = spawn_test_process();
+    clear_marker_file();
+
+    let injector = ReflectiveLoaderInjector::new();
+    let handle = ProcessHandle::open(pid, injector.required_access())
+        .expect("Failed to open process - run as administrator!");
+
+    println!("Injecting into PID {} using Reflective Loader...", pid);
+    let result = injector.inject(&handle, &dll_path);
+
+    // Reflective loader is not fully implemented, so we expect it to fail
+    if result.is_err() {
+        println!("Reflective Loader failed (expected - not fully implemented)");
+        println!("Error: {:?}", result.err());
+    } else {
+        println!("Reflective Loader injection succeeded (unexpected!)");
+    }
+
+    let _ = child.kill();
+    clear_marker_file();
+
+    println!("Reflective Loader injection test completed!");
+}

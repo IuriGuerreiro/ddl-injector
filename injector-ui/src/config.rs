@@ -40,6 +40,10 @@ impl From<InjectionMethodType> for SerializableMethod {
             InjectionMethodType::ManualMap => Self::ManualMap,
             InjectionMethodType::QueueUserApc => Self::QueueUserApc,
             InjectionMethodType::NtCreateThreadEx => Self::NtCreateThreadEx,
+            // New experimental methods default to CreateRemoteThread for config persistence
+            InjectionMethodType::SectionMapping
+            | InjectionMethodType::ThreadHijacking
+            | InjectionMethodType::ReflectiveLoader => Self::CreateRemoteThread,
         }
     }
 }

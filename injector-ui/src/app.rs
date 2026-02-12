@@ -55,6 +55,9 @@ pub enum InjectionMethodType {
     ManualMap,
     QueueUserApc,
     NtCreateThreadEx,
+    SectionMapping,
+    ThreadHijacking,
+    ReflectiveLoader,
 }
 
 impl InjectionMethodType {
@@ -64,6 +67,9 @@ impl InjectionMethodType {
             Self::ManualMap => "Manual Map",
             Self::QueueUserApc => "QueueUserAPC",
             Self::NtCreateThreadEx => "NtCreateThreadEx",
+            Self::SectionMapping => "Section Mapping",
+            Self::ThreadHijacking => "Thread Hijacking",
+            Self::ReflectiveLoader => "Reflective Loader",
         }
     }
 
@@ -73,6 +79,9 @@ impl InjectionMethodType {
             Self::ManualMap => "Advanced stealth injection - bypasses PEB module list",
             Self::QueueUserApc => "Inject via Asynchronous Procedure Call to alertable threads",
             Self::NtCreateThreadEx => "Inject via undocumented native API (bypasses some hooks)",
+            Self::SectionMapping => "Memory-efficient injection using section objects (STABLE)",
+            Self::ThreadHijacking => "Hijack existing thread to execute injection (EXPERIMENTAL)",
+            Self::ReflectiveLoader => "Advanced PIC loader - no LoadLibrary calls (RESEARCH)",
         }
     }
 
@@ -82,6 +91,9 @@ impl InjectionMethodType {
             Self::ManualMap,
             Self::QueueUserApc,
             Self::NtCreateThreadEx,
+            Self::SectionMapping,
+            Self::ThreadHijacking,
+            Self::ReflectiveLoader,
         ]
     }
 }
@@ -268,6 +280,45 @@ impl InjectorApp {
             }
             InjectionMethodType::NtCreateThreadEx => {
                 let injector = NtCreateThreadExInjector::new();
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::SectionMapping => {
+                let injector = SectionMappingInjector::new();
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::ThreadHijacking => {
+                let injector = ThreadHijackingInjector::new();
+                let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
+                    Ok(h) => h,
+                    Err(e) => {
+                        self.last_error = Some(format!("Failed to open process: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                        self.ui_state.injecting = false;
+                        return;
+                    }
+                };
+                injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::ReflectiveLoader => {
+                let injector = ReflectiveLoaderInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
                     Err(e) => {
