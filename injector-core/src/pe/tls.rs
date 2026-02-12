@@ -306,3 +306,69 @@ fn create_tls_callback_shellcode_32(dll_base: *mut u8, callback_rva: u32) -> Vec
 
     shellcode
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_tls_directory() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
+            .expect("Failed to parse test DLL");
+
+        let tls_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_TLS);
+        // TLS might not exist in all DLLs - this is okay
+        if let Some(dir) = tls_dir {
+            // If TLS directory exists, it should have valid data
+            if dir.virtual_address != 0 {
+                assert!(dir.size > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_tls_callback_shellcode_64() {
+        let dll_base = 0x180000000 as *mut u8;
+        let callback_rva = 0x1000;
+
+        let shellcode = create_tls_callback_shellcode_64(dll_base, callback_rva);
+
+        // Verify shellcode is not empty
+        assert!(shellcode.len() > 0);
+
+        // Verify it ends with ret (0xC3)
+        assert_eq!(*shellcode.last().unwrap(), 0xC3);
+    }
+
+    #[test]
+    fn test_tls_callback_shellcode_32() {
+        let dll_base = 0x10000000 as *mut u8;
+        let callback_rva = 0x2000;
+
+        let shellcode = create_tls_callback_shellcode_32(dll_base, callback_rva);
+
+        // Verify shellcode is not empty
+        assert!(shellcode.len() > 0);
+
+        // Verify it ends with ret 0xC (stdcall cleanup)
+        assert_eq!(shellcode[shellcode.len() - 3], 0xC2);
+        assert_eq!(shellcode[shellcode.len() - 2], 0x0C);
+        assert_eq!(shellcode[shellcode.len() - 1], 0x00);
+    }
+}

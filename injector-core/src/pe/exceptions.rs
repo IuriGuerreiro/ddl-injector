@@ -178,3 +178,69 @@ fn create_rtl_add_function_table_shellcode(
 
     shellcode
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_exception_directory_64bit() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
+            .expect("Failed to parse test DLL");
+
+        if pe.is_64bit {
+            let exception_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_EXCEPTION);
+            // 64-bit DLLs typically have exception directory
+            if let Some(dir) = exception_dir {
+                if dir.virtual_address != 0 {
+                    assert!(dir.size > 0);
+                    // Size should be multiple of 12 (RUNTIME_FUNCTION size)
+                    assert_eq!(dir.size % 12, 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rtl_add_function_table_shellcode() {
+        let rtl_addr = 0x7FFE0000usize;
+        let function_table_addr = 0x180001000u64;
+        let entry_count = 10u32;
+        let base_address = 0x180000000u64;
+
+        let shellcode = create_rtl_add_function_table_shellcode(
+            rtl_addr,
+            function_table_addr,
+            entry_count,
+            base_address,
+        );
+
+        // Verify shellcode is not empty
+        assert!(shellcode.len() > 0);
+
+        // Verify it ends with ret (0xC3)
+        assert_eq!(*shellcode.last().unwrap(), 0xC3);
+
+        // Verify shellcode contains shadow space setup (sub rsp, 0x28)
+        assert_eq!(shellcode[0], 0x48);
+        assert_eq!(shellcode[1], 0x83);
+        assert_eq!(shellcode[2], 0xEC);
+        assert_eq!(shellcode[3], 0x28);
+    }
+}

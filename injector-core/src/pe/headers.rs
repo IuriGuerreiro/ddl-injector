@@ -268,3 +268,165 @@ pub struct ImageTlsDirectory32 {
     pub size_of_zero_fill: u32,
     pub characteristics: u32,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dos_header_validate_valid() {
+        let header = ImageDosHeader {
+            e_magic: IMAGE_DOS_SIGNATURE,
+            e_cblp: 0,
+            e_cp: 0,
+            e_crlc: 0,
+            e_cparhdr: 0,
+            e_minalloc: 0,
+            e_maxalloc: 0,
+            e_ss: 0,
+            e_sp: 0,
+            e_csum: 0,
+            e_ip: 0,
+            e_cs: 0,
+            e_lfarlc: 0,
+            e_ovno: 0,
+            e_res: [0; 4],
+            e_oemid: 0,
+            e_oeminfo: 0,
+            e_res2: [0; 10],
+            e_lfanew: 0x100,
+        };
+
+        assert!(header.validate().is_ok());
+    }
+
+    #[test]
+    fn test_dos_header_validate_invalid() {
+        let header = ImageDosHeader {
+            e_magic: 0x0000, // Invalid magic
+            e_cblp: 0,
+            e_cp: 0,
+            e_crlc: 0,
+            e_cparhdr: 0,
+            e_minalloc: 0,
+            e_maxalloc: 0,
+            e_ss: 0,
+            e_sp: 0,
+            e_csum: 0,
+            e_ip: 0,
+            e_cs: 0,
+            e_lfarlc: 0,
+            e_ovno: 0,
+            e_res: [0; 4],
+            e_oemid: 0,
+            e_oeminfo: 0,
+            e_res2: [0; 10],
+            e_lfanew: 0x100,
+        };
+
+        assert!(header.validate().is_err());
+    }
+
+    #[test]
+    fn test_constants() {
+        assert_eq!(IMAGE_DOS_SIGNATURE, 0x5A4D); // "MZ"
+        assert_eq!(IMAGE_NT_SIGNATURE, 0x00004550); // "PE\0\0"
+        assert_eq!(IMAGE_FILE_MACHINE_I386, 0x014c);
+        assert_eq!(IMAGE_FILE_MACHINE_AMD64, 0x8664);
+    }
+
+    #[test]
+    fn test_section_characteristics_constants() {
+        assert_eq!(IMAGE_SCN_MEM_EXECUTE, 0x20000000);
+        assert_eq!(IMAGE_SCN_MEM_READ, 0x40000000);
+        assert_eq!(IMAGE_SCN_MEM_WRITE, 0x80000000);
+    }
+
+    #[test]
+    fn test_relocation_type_constants() {
+        assert_eq!(IMAGE_REL_BASED_ABSOLUTE, 0);
+        assert_eq!(IMAGE_REL_BASED_HIGHLOW, 3);
+        assert_eq!(IMAGE_REL_BASED_DIR64, 10);
+    }
+
+    #[test]
+    fn test_section_header_name() {
+        let mut section = ImageSectionHeader {
+            name: [0; 8],
+            virtual_size: 0,
+            virtual_address: 0,
+            size_of_raw_data: 0,
+            pointer_to_raw_data: 0,
+            pointer_to_relocations: 0,
+            pointer_to_linenumbers: 0,
+            number_of_relocations: 0,
+            number_of_linenumbers: 0,
+            characteristics: 0,
+        };
+
+        // Test with ".text" section name
+        section.name[0] = b'.';
+        section.name[1] = b't';
+        section.name[2] = b'e';
+        section.name[3] = b'x';
+        section.name[4] = b't';
+
+        let name = section.name();
+        assert_eq!(name, ".text");
+    }
+
+    #[test]
+    fn test_section_header_name_full_length() {
+        let mut section = ImageSectionHeader {
+            name: [0; 8],
+            virtual_size: 0,
+            virtual_address: 0,
+            size_of_raw_data: 0,
+            pointer_to_raw_data: 0,
+            pointer_to_relocations: 0,
+            pointer_to_linenumbers: 0,
+            number_of_relocations: 0,
+            number_of_linenumbers: 0,
+            characteristics: 0,
+        };
+
+        // Test with full 8-character name (no null terminator)
+        section.name = *b"longsect";
+
+        let name = section.name();
+        assert_eq!(name, "longsect");
+    }
+
+    #[test]
+    fn test_import_descriptor_is_null() {
+        let null_desc = ImageImportDescriptor {
+            original_first_thunk: 0,
+            time_date_stamp: 0,
+            forwarder_chain: 0,
+            name: 0,
+            first_thunk: 0,
+        };
+
+        assert!(null_desc.is_null());
+
+        let non_null_desc = ImageImportDescriptor {
+            original_first_thunk: 0x1000,
+            time_date_stamp: 0,
+            forwarder_chain: 0,
+            name: 0x2000,
+            first_thunk: 0x3000,
+        };
+
+        assert!(!non_null_desc.is_null());
+    }
+
+    #[test]
+    fn test_data_directory_indices() {
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_EXPORT, 0);
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_IMPORT, 1);
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_RESOURCE, 2);
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_EXCEPTION, 3);
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_BASERELOC, 5);
+        assert_eq!(IMAGE_DIRECTORY_ENTRY_TLS, 9);
+    }
+}

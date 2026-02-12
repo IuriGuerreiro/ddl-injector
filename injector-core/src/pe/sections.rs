@@ -149,3 +149,66 @@ fn section_characteristics_to_protection(characteristics: u32) -> PAGE_PROTECTIO
         (false, true, false) | (false, false, false) => PAGE_READONLY,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_section_characteristics_to_protection_execute_read() {
+        let characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_EXECUTE_READ);
+    }
+
+    #[test]
+    fn test_section_characteristics_to_protection_execute_readwrite() {
+        let characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_EXECUTE_READWRITE);
+    }
+
+    #[test]
+    fn test_section_characteristics_to_protection_readwrite() {
+        let characteristics = IMAGE_SCN_MEM_READ | IMAGE_SCN_MEM_WRITE;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_READWRITE);
+    }
+
+    #[test]
+    fn test_section_characteristics_to_protection_readonly() {
+        let characteristics = IMAGE_SCN_MEM_READ;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_READONLY);
+    }
+
+    #[test]
+    fn test_section_characteristics_to_protection_write_only() {
+        let characteristics = IMAGE_SCN_MEM_WRITE;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        // Write-only should map to PAGE_READWRITE
+        assert_eq!(protection, PAGE_READWRITE);
+    }
+
+    #[test]
+    fn test_section_characteristics_to_protection_no_flags() {
+        let characteristics = 0;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_READONLY);
+    }
+
+    #[test]
+    fn test_section_characteristics_execute_write() {
+        // Execute + Write (without explicit Read)
+        let characteristics = IMAGE_SCN_MEM_EXECUTE | IMAGE_SCN_MEM_WRITE;
+        let protection = section_characteristics_to_protection(characteristics);
+
+        assert_eq!(protection, PAGE_EXECUTE_READWRITE);
+    }
+}

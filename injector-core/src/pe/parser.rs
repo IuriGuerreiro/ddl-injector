@@ -310,3 +310,249 @@ impl PeFile {
         Ok(String::from_utf8_lossy(&bytes[..len]).to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    /// Helper function to get path to test DLL
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_from_file_with_test_dll() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            // Skip test if DLL not built yet
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        assert!(pe.data.len() > 0);
+        assert!(pe.sections.len() > 0);
+        // Test DLL should be 64-bit on x64 systems
+        #[cfg(target_pointer_width = "64")]
+        assert!(pe.is_64bit);
+    }
+
+    #[test]
+    fn test_from_bytes_valid_data() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let data = std::fs::read(&dll_path).expect("Failed to read test DLL");
+        let pe = PeFile::from_bytes(data).expect("Failed to parse from bytes");
+
+        assert!(pe.sections.len() > 0);
+    }
+
+    #[test]
+    fn test_file_too_small() {
+        let data = vec![0u8; 10]; // Too small for DOS header
+        let result = PeFile::from_bytes(data);
+
+        assert!(result.is_err());
+        match result {
+            Err(InjectionError::InvalidPeFile(msg)) => {
+                assert!(msg.contains("too small"));
+            }
+            _ => panic!("Expected InvalidPeFile error"),
+        }
+    }
+
+    #[test]
+    fn test_invalid_dos_signature() {
+        let mut data = vec![0u8; 1024];
+        // Set wrong DOS signature (should be 0x5A4D "MZ")
+        data[0] = 0x00;
+        data[1] = 0x00;
+
+        let result = PeFile::from_bytes(data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_nt_signature() {
+        let mut data = vec![0u8; 1024];
+        // Valid DOS signature
+        data[0] = 0x4D; // 'M'
+        data[1] = 0x5A; // 'Z'
+        // Set e_lfanew to offset 64
+        data[60] = 64;
+        data[61] = 0;
+        data[62] = 0;
+        data[63] = 0;
+        // Invalid NT signature at offset 64 (should be "PE\0\0")
+        data[64] = 0xFF;
+        data[65] = 0xFF;
+        data[66] = 0xFF;
+        data[67] = 0xFF;
+
+        let result = PeFile::from_bytes(data);
+        assert!(result.is_err());
+        match result {
+            Err(InjectionError::InvalidPeSignature) => {}
+            _ => panic!("Expected InvalidPeSignature error"),
+        }
+    }
+
+    #[test]
+    fn test_image_base() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+        let image_base = pe.image_base();
+
+        // Image base should be non-zero for valid PE
+        assert!(image_base > 0);
+    }
+
+    #[test]
+    fn test_entry_point() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+        let entry_point = pe.entry_point();
+
+        // Entry point should be non-zero for DLLs with DllMain
+        assert!(entry_point > 0);
+    }
+
+    #[test]
+    fn test_size_of_image() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+        let size = pe.size_of_image();
+
+        // Size should be reasonable (greater than file size on disk due to alignment)
+        assert!(size > 0);
+        assert!(size < 100 * 1024 * 1024); // Less than 100MB
+    }
+
+    #[test]
+    fn test_size_of_headers() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+        let size = pe.size_of_headers();
+
+        assert!(size > 0);
+        assert!(size < pe.data.len() as u32);
+    }
+
+    #[test]
+    fn test_rva_to_offset_in_headers() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        // RVA in headers should map directly
+        let offset = pe.rva_to_offset(0x100);
+        assert!(offset.is_some());
+        assert_eq!(offset.unwrap(), 0x100);
+    }
+
+    #[test]
+    fn test_rva_to_offset_in_section() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        if let Some(section) = pe.sections.first() {
+            let rva = section.virtual_address + 10;
+            let offset = pe.rva_to_offset(rva);
+
+            assert!(offset.is_some());
+        }
+    }
+
+    #[test]
+    fn test_rva_to_offset_invalid() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        // Very large RVA should not be found
+        let offset = pe.rva_to_offset(0xFFFFFFFF);
+        assert!(offset.is_none());
+    }
+
+    #[test]
+    fn test_read_at_rva() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        // Read DOS header magic bytes
+        let result = pe.read_at_rva(0, 2);
+        assert!(result.is_ok());
+
+        let bytes = result.unwrap();
+        assert_eq!(bytes[0], b'M');
+        assert_eq!(bytes[1], b'Z');
+    }
+
+    #[test]
+    fn test_read_at_rva_invalid() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        // Try to read at invalid RVA
+        let result = pe.read_at_rva(0xFFFFFFFF, 10);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_data_directory() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
+
+        // Test DLL should have import directory
+        let import_dir = pe.data_directory(1); // IMAGE_DIRECTORY_ENTRY_IMPORT
+        assert!(import_dir.is_some());
+    }
+}

@@ -216,3 +216,66 @@ pub unsafe fn resolve_imports(
     log::info!("All imports resolved successfully");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_import_directory_exists() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
+            .expect("Failed to parse test DLL");
+
+        let import_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_IMPORT);
+        assert!(import_dir.is_some());
+
+        if let Some(dir) = import_dir {
+            assert!(dir.virtual_address > 0);
+            assert!(dir.size > 0);
+        }
+    }
+
+    #[test]
+    fn test_ordinal_flags() {
+        assert_eq!(IMAGE_ORDINAL_FLAG32, 0x80000000);
+        assert_eq!(IMAGE_ORDINAL_FLAG64, 0x8000000000000000);
+    }
+
+    #[test]
+    fn test_ordinal_detection_32bit() {
+        let thunk_value: u32 = IMAGE_ORDINAL_FLAG32 | 42; // Ordinal 42
+        let is_ordinal = (thunk_value & IMAGE_ORDINAL_FLAG32) != 0;
+
+        assert!(is_ordinal);
+
+        let ordinal = (thunk_value & 0xFFFF) as u16;
+        assert_eq!(ordinal, 42);
+    }
+
+    #[test]
+    fn test_ordinal_detection_64bit() {
+        let thunk_value: u64 = IMAGE_ORDINAL_FLAG64 | 100; // Ordinal 100
+        let is_ordinal = (thunk_value & IMAGE_ORDINAL_FLAG64) != 0;
+
+        assert!(is_ordinal);
+
+        let ordinal = (thunk_value & 0xFFFF) as u16;
+        assert_eq!(ordinal, 100);
+    }
+}

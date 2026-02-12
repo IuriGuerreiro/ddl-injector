@@ -156,3 +156,79 @@ pub unsafe fn process_relocations(
     log::info!("Base relocations processed successfully");
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_relocation_directory_exists() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            return;
+        }
+
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
+            .expect("Failed to parse test DLL");
+
+        let reloc_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_BASERELOC);
+        // Relocations might not exist in all DLLs
+        if let Some(dir) = reloc_dir {
+            if dir.virtual_address != 0 {
+                assert!(dir.size > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn test_relocation_type_parsing() {
+        // Test entry format: high 4 bits = type, low 12 bits = offset
+        let entry: u16 = (IMAGE_REL_BASED_DIR64 << 12) | 0x123;
+
+        let reloc_type = entry >> 12;
+        let reloc_offset = entry & 0x0FFF;
+
+        assert_eq!(reloc_type, IMAGE_REL_BASED_DIR64);
+        assert_eq!(reloc_offset, 0x123);
+    }
+
+    #[test]
+    fn test_relocation_type_highlow() {
+        let entry: u16 = (IMAGE_REL_BASED_HIGHLOW << 12) | 0x456;
+
+        let reloc_type = entry >> 12;
+        let reloc_offset = entry & 0x0FFF;
+
+        assert_eq!(reloc_type, IMAGE_REL_BASED_HIGHLOW);
+        assert_eq!(reloc_offset, 0x456);
+    }
+
+    #[test]
+    fn test_relocation_type_absolute() {
+        let entry: u16 = (IMAGE_REL_BASED_ABSOLUTE << 12) | 0x000;
+
+        let reloc_type = entry >> 12;
+
+        assert_eq!(reloc_type, IMAGE_REL_BASED_ABSOLUTE);
+    }
+
+    #[test]
+    fn test_delta_calculation() {
+        let preferred_base: u64 = 0x180000000;
+        let actual_base: u64 = 0x200000000;
+        let delta = actual_base.wrapping_sub(preferred_base) as i64;
+
+        assert_eq!(delta, 0x80000000);
+    }
+}
