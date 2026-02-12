@@ -152,20 +152,50 @@ impl InjectorApp {
         app
     }
 
-    fn configure_fonts(_ctx: &egui::Context) {
-        // Use default fonts for now
-        // Custom fonts can be added here if needed
+    fn configure_fonts(ctx: &egui::Context) {
+        let mut fonts = egui::FontDefinitions::default();
+        fonts
+            .families
+            .entry(egui::FontFamily::Proportional)
+            .or_default()
+            .insert(0, "Ubuntu-Light".to_owned());
+        fonts
+            .families
+            .entry(egui::FontFamily::Monospace)
+            .or_default()
+            .insert(0, "Hack".to_owned());
+        ctx.set_fonts(fonts);
     }
 
     fn configure_style(ctx: &egui::Context) {
         let mut style = (*ctx.style()).clone();
 
-        // Customize colors
-        style.visuals.window_rounding = 8.0.into();
-        style.visuals.widgets.noninteractive.rounding = 4.0.into();
-        style.visuals.widgets.inactive.rounding = 4.0.into();
-        style.visuals.widgets.hovered.rounding = 4.0.into();
-        style.visuals.widgets.active.rounding = 4.0.into();
+        style.visuals = egui::Visuals::dark();
+        style.visuals.window_fill = egui::Color32::from_rgb(8, 11, 18);
+        style.visuals.panel_fill = egui::Color32::from_rgb(10, 14, 22);
+        style.visuals.extreme_bg_color = egui::Color32::from_rgb(4, 8, 14);
+        style.visuals.override_text_color = Some(egui::Color32::from_rgb(218, 223, 236));
+        style.visuals.hyperlink_color = egui::Color32::from_rgb(240, 112, 89);
+        style.visuals.window_corner_radius = 12.0.into();
+        style.visuals.widgets.noninteractive.corner_radius = 8.0.into();
+        style.visuals.widgets.inactive.corner_radius = 8.0.into();
+        style.visuals.widgets.hovered.corner_radius = 8.0.into();
+        style.visuals.widgets.active.corner_radius = 8.0.into();
+        style.spacing.item_spacing = egui::vec2(8.0, 8.0);
+        style.spacing.button_padding = egui::vec2(12.0, 8.0);
+
+        style.text_styles.insert(
+            egui::TextStyle::Heading,
+            egui::FontId::new(24.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Body,
+            egui::FontId::new(14.0, egui::FontFamily::Proportional),
+        );
+        style.text_styles.insert(
+            egui::TextStyle::Monospace,
+            egui::FontId::new(13.0, egui::FontFamily::Monospace),
+        );
 
         ctx.set_style(style);
     }
@@ -320,32 +350,31 @@ impl eframe::App for InjectorApp {
             self.refresh_processes();
         }
 
-        // Top menu bar
-        egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Refresh Processes").clicked() {
-                        self.ui_state.refresh_processes = true;
-                        ui.close_menu();
-                    }
-                    if ui.button("Settings").clicked() {
-                        self.ui_state.show_settings = true;
-                        ui.close_menu();
-                    }
-                    ui.separator();
-                    if ui.button("Exit").clicked() {
-                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-                    }
-                });
+        // Top command bar
+        egui::TopBottomPanel::top("menu_bar")
+            .exact_height(58.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("DDL INJECTOR // NIGHT OPERATOR");
+                    ui.label(
+                        egui::RichText::new("Stealth-forward payload deployment")
+                            .size(12.0)
+                            .color(egui::Color32::from_rgb(186, 193, 210)),
+                    );
 
-                ui.menu_button("Help", |ui| {
-                    if ui.button("About").clicked() {
-                        // TODO: Show about dialog
-                        ui.close_menu();
-                    }
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("EXIT").clicked() {
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                        }
+                        if ui.button("SETTINGS").clicked() {
+                            self.ui_state.show_settings = true;
+                        }
+                        if ui.button("REFRESH").clicked() {
+                            self.ui_state.refresh_processes = true;
+                        }
+                    });
                 });
             });
-        });
 
         // Settings window
         if self.ui_state.show_settings {
@@ -360,7 +389,7 @@ impl eframe::App for InjectorApp {
         // Left panel - Process list
         egui::SidePanel::left("process_panel")
             .resizable(true)
-            .default_width(300.0)
+            .default_width(360.0)
             .show(ctx, |ui| {
                 ui::process_list::render(
                     ui,
@@ -375,7 +404,7 @@ impl eframe::App for InjectorApp {
         // Bottom panel - Logs
         egui::TopBottomPanel::bottom("log_panel")
             .resizable(true)
-            .default_height(200.0)
+            .default_height(240.0)
             .show(ctx, |ui| {
                 ui::log_viewer::render(ui, &self.logs, &mut self.log_viewer_state);
             });

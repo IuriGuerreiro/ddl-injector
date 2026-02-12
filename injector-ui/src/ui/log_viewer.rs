@@ -25,7 +25,6 @@ pub struct LogViewerState {
 impl LogViewerState {
     /// Check if a log entry passes the level filter.
     fn passes_level_filter(&self, level: log::Level) -> bool {
-        // If no filters are enabled, show all
         if !self.filter_error
             && !self.filter_warn
             && !self.filter_info
@@ -63,116 +62,136 @@ impl LogViewerState {
 
 /// Render the log viewer UI.
 pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut LogViewerState) {
-    ui.heading("Logs");
-
-    // Control bar
     ui.horizontal(|ui| {
-        // Clear button
-        if ui.button("Clear").clicked() {
-            if let Ok(mut log_vec) = logs.lock() {
-                log_vec.clear();
-            }
-        }
-
-        // Export button
-        if ui.button("Export...").clicked() {
-            export_logs(logs);
-        }
-
-        ui.separator();
-
-        // Level filter checkboxes
-        ui.label("Filters:");
-        ui.checkbox(&mut state.filter_error, "Error");
-        ui.checkbox(&mut state.filter_warn, "Warn");
-        ui.checkbox(&mut state.filter_info, "Info");
-        ui.checkbox(&mut state.filter_debug, "Debug");
-        ui.checkbox(&mut state.filter_trace, "Trace");
-
-        ui.separator();
-
-        // Search box
-        ui.label("Search:");
-        ui.text_edit_singleline(&mut state.search_text);
-
-        ui.separator();
-
-        // Auto-scroll toggle
-        ui.checkbox(&mut state.auto_scroll, "Auto-scroll");
+        ui.heading("TELEMETRY");
+        ui.label(
+            egui::RichText::new("Live instrumentation stream")
+                .size(12.0)
+                .color(egui::Color32::from_rgb(186, 193, 210)),
+        );
     });
 
-    // Stats display
-    if let Ok(log_vec) = logs.lock() {
-        let filtered_count = log_vec.iter().filter(|e| state.passes_filters(e)).count();
-        let total_count = log_vec.len();
+    egui::Frame::default()
+        .fill(egui::Color32::from_rgb(17, 22, 36))
+        .corner_radius(12.0)
+        .inner_margin(egui::Margin::symmetric(10, 10))
+        .show(ui, |ui| {
+            ui.horizontal_wrapped(|ui| {
+                if ui.button("CLEAR").clicked() {
+                    if let Ok(mut log_vec) = logs.lock() {
+                        log_vec.clear();
+                    }
+                }
 
-        ui.horizontal(|ui| {
-            ui.label(format!(
-                "Showing {} of {} messages",
-                filtered_count, total_count
-            ));
-        });
-    }
+                if ui.button("EXPORT").clicked() {
+                    export_logs(logs);
+                }
 
-    ui.separator();
+                ui.separator();
+                ui.checkbox(&mut state.filter_error, "ERR");
+                ui.checkbox(&mut state.filter_warn, "WRN");
+                ui.checkbox(&mut state.filter_info, "INF");
+                ui.checkbox(&mut state.filter_debug, "DBG");
+                ui.checkbox(&mut state.filter_trace, "TRC");
 
-    // Scrollable log area
-    let scroll_area = egui::ScrollArea::vertical().auto_shrink([false, false]);
+                ui.separator();
+                ui.label("SEARCH");
+                ui.add(egui::TextEdit::singleline(&mut state.search_text).desired_width(160.0));
 
-    let scroll_area = if state.auto_scroll {
-        scroll_area.stick_to_bottom(true)
-    } else {
-        scroll_area
-    };
+                ui.separator();
+                ui.checkbox(&mut state.auto_scroll, "FOLLOW");
+            });
 
-    scroll_area.show(ui, |ui| {
-        if let Ok(log_vec) = logs.lock() {
-            let filtered_logs: Vec<&LogEntry> =
-                log_vec.iter().filter(|e| state.passes_filters(e)).collect();
+            ui.add_space(6.0);
 
-            for entry in &filtered_logs {
-                ui.horizontal(|ui| {
-                    // Timestamp
-                    let datetime: DateTime<Local> = entry.timestamp.into();
-                    let time_str = datetime.format("%H:%M:%S").to_string();
-                    ui.label(egui::RichText::new(time_str).color(egui::Color32::DARK_GRAY));
+            if let Ok(log_vec) = logs.lock() {
+                let filtered_count = log_vec.iter().filter(|e| state.passes_filters(e)).count();
+                ui.label(
+                    egui::RichText::new(format!(
+                        "{} packets visible · {} total",
+                        filtered_count,
+                        log_vec.len()
+                    ))
+                    .monospace()
+                    .size(11.0)
+                    .color(egui::Color32::from_rgb(228, 170, 71)),
+                );
+            }
 
-                    // Level indicator with color
-                    let (color, level_str) = match entry.level {
-                        log::Level::Error => (egui::Color32::RED, "ERROR"),
-                        log::Level::Warn => (egui::Color32::YELLOW, "WARN "),
-                        log::Level::Info => (egui::Color32::GREEN, "INFO "),
-                        log::Level::Debug => (egui::Color32::GRAY, "DEBUG"),
-                        log::Level::Trace => (egui::Color32::DARK_GRAY, "TRACE"),
-                    };
+            ui.add_space(8.0);
 
-                    ui.colored_label(color, level_str);
+            let scroll_area = egui::ScrollArea::vertical().auto_shrink([false, false]);
+            let scroll_area = if state.auto_scroll {
+                scroll_area.stick_to_bottom(true)
+            } else {
+                scroll_area
+            };
 
-                    // Target (if not empty)
-                    if !entry.target.is_empty() {
-                        ui.label(
-                            egui::RichText::new(format!("[{}]", entry.target))
-                                .color(egui::Color32::LIGHT_BLUE),
-                        );
+            scroll_area.show(ui, |ui| {
+                if let Ok(log_vec) = logs.lock() {
+                    let filtered_logs: Vec<&LogEntry> =
+                        log_vec.iter().filter(|e| state.passes_filters(e)).collect();
+
+                    for entry in &filtered_logs {
+                        let (level_color, level_str) = match entry.level {
+                            log::Level::Error => (egui::Color32::from_rgb(239, 112, 102), "ERROR"),
+                            log::Level::Warn => (egui::Color32::from_rgb(231, 188, 92), "WARN "),
+                            log::Level::Info => (egui::Color32::from_rgb(89, 206, 144), "INFO "),
+                            log::Level::Debug => (egui::Color32::from_rgb(144, 158, 186), "DEBUG"),
+                            log::Level::Trace => (egui::Color32::from_rgb(108, 117, 141), "TRACE"),
+                        };
+
+                        egui::Frame::default()
+                            .fill(egui::Color32::from_rgb(24, 31, 46))
+                            .corner_radius(8.0)
+                            .inner_margin(egui::Margin::symmetric(8, 6))
+                            .show(ui, |ui| {
+                                ui.horizontal_wrapped(|ui| {
+                                    let datetime: DateTime<Local> = entry.timestamp.into();
+                                    let time_str = datetime.format("%H:%M:%S").to_string();
+                                    ui.label(
+                                        egui::RichText::new(time_str)
+                                            .monospace()
+                                            .color(egui::Color32::from_rgb(131, 139, 161)),
+                                    );
+
+                                    ui.colored_label(
+                                        level_color,
+                                        egui::RichText::new(level_str).monospace().strong(),
+                                    );
+
+                                    if !entry.target.is_empty() {
+                                        ui.label(
+                                            egui::RichText::new(format!("[{}]", entry.target))
+                                                .color(egui::Color32::from_rgb(120, 172, 255)),
+                                        );
+                                    }
+
+                                    ui.label(&entry.message);
+                                });
+                            });
+
+                        ui.add_space(4.0);
                     }
 
-                    // Message
-                    ui.label(&entry.message);
-                });
-            }
-
-            if filtered_logs.is_empty() && log_vec.is_empty() {
-                ui.colored_label(egui::Color32::GRAY, "No log messages");
-            } else if filtered_logs.is_empty() {
-                ui.colored_label(egui::Color32::GRAY, "No messages match current filters");
-            }
-        }
-    });
+                    if filtered_logs.is_empty() && log_vec.is_empty() {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(137, 146, 168),
+                            "No telemetry yet",
+                        );
+                    } else if filtered_logs.is_empty() {
+                        ui.colored_label(
+                            egui::Color32::from_rgb(137, 146, 168),
+                            "No telemetry matches current filters",
+                        );
+                    }
+                }
+            });
+        });
 }
 
 /// Export logs to a file.
 fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
-    // Open file dialog
     let file_path = rfd::FileDialog::new()
         .set_file_name("injector_logs.txt")
         .add_filter("Text Files", &["txt"])
@@ -180,7 +199,6 @@ fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
         .save_file();
 
     if let Some(path) = file_path {
-        // Collect all logs
         if let Ok(log_vec) = logs.lock() {
             let mut content = String::new();
 
@@ -199,7 +217,6 @@ fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
                 }
             }
 
-            // Write to file
             if let Err(e) = std::fs::write(&path, content) {
                 log::error!("Failed to export logs: {}", e);
             } else {
