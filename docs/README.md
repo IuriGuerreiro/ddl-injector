@@ -15,6 +15,7 @@ Welcome to the DLL Injector documentation. This directory contains comprehensive
 - **[API Reference](api-reference.md)** - Complete public API documentation for `injector-core` library
 - **[Testing Guide](TESTING.md)** - Comprehensive test strategy and running tests
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+- **[Project Review](project-review.md)** - Non-UI review of improvements and constraints
 
 ### Implementation Phases
 

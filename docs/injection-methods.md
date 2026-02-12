@@ -527,71 +527,93 @@ pub fn get_nt_create_thread_ex() -> Result<NtCreateThreadEx> {
 
 ---
 
-## Comparison Matrix
+## Capability Matrix
 
-| Feature | CreateRemoteThread | Manual Mapping | QueueUserAPC | NtCreateThreadEx |
-|---------|-------------------|----------------|---------------|------------------|
-| **Complexity** | Low | Very High | Medium | Medium |
-| **Reliability** | High | Medium | Medium | High |
-| **Stealth Level** | Low | Medium-High | Medium | Medium |
-| **Module List** | Visible | Hidden | Visible | Visible |
-| **Detection Risk** | High | Medium | Medium | Low-Medium |
-| **Windows Support** | All versions | All versions | All versions | Win Vista+ |
-| **Implementation Time** | ~4 hours | ~16-24 hours | ~6 hours | ~6 hours |
-| **Error Handling** | Simple | Complex | Medium | Medium |
-| **Thread Creation** | Yes (new) | Yes (new) | No (existing) | Yes (new) |
-| **DllMain Called** | Yes | Yes | Yes | Yes |
-| **Educational Value** | Medium | Very High | Medium | High |
+This matrix captures **what each method can do today** and the practical constraints that matter during operation.
+
+| Capability | CreateRemoteThread | Manual Map | QueueUserAPC | NtCreateThreadEx |
+|---|---|---|---|---|
+| Loads DLL with Windows loader (`LoadLibraryW`) | ✅ Yes | ❌ No (manual loader flow) | ✅ Yes | ✅ Yes |
+| Hides from standard module list (PEB/Ldr lists) | ❌ No | ✅ Yes (goal of manual map) | ❌ No | ❌ No |
+| Calls target `DllMain` | ✅ Yes | ✅ Yes (entry-point shellcode) | ✅ Yes | ✅ Yes |
+| Requires creating a new remote thread | ✅ Yes | ✅ Yes (for loader/entry) | ❌ No (queues into existing threads) | ✅ Yes |
+| Depends on target thread entering alertable state | ❌ No | ❌ No | ✅ Yes | ❌ No |
+| Uses undocumented NT API | ❌ No | ❌ No | ❌ No | ✅ Yes (`NtCreateThreadEx`) |
+| Architecture match required (x86↔x64 mismatch unsupported) | ✅ Required | ✅ Required | ✅ Required | ✅ Required |
+| Typical anti-cheat/EDR visibility | High | Medium (memory artifacts still visible) | Medium | Medium |
+| Relative implementation complexity | Low | Very High | Medium | Medium |
+
+## Support-Level Matrix
+
+This matrix defines **maintenance confidence** so users know what to expect.
+
+| Method | Support Level | Rationale | Recommended Use |
+|---|---|---|---|
+| CreateRemoteThread | **Stable** | Most mature and straightforward code path; easiest to reason about and debug. | Default for reliability-first testing and baseline validation. |
+| Manual Map | **Experimental** | Highest complexity and most edge cases (imports, relocations, TLS, exceptions). | Research/advanced scenarios where stealth characteristics matter. |
+| QueueUserAPC | **Beta / Manual-test-heavy** | Behavior depends on target thread scheduling and alertable waits. | Secondary option when you can validate target thread behavior. |
+| NtCreateThreadEx | **Beta** | Uses native API path with compatibility nuance across environments. | Alternative to CreateRemoteThread when API-path variation is needed. |
+
+> Suggested convention for docs and release notes: `Stable`, `Beta`, `Experimental`, and `Manual-test-only`.
+
+## How to Build and Maintain These Matrices
+
+Use this repeatable process whenever a method changes:
+
+1. **Read the implementation path in code**
+   - `injector-core/src/injection/create_remote_thread.rs`
+   - `injector-core/src/injection/manual_map.rs`
+   - `injector-core/src/injection/queue_user_apc.rs`
+   - `injector-core/src/injection/nt_create_thread.rs`
+2. **Extract objective facts only** (e.g., creates thread, calls `LoadLibraryW`, requires alertable thread).
+3. **Assign support level by evidence**:
+   - test coverage depth,
+   - determinism/reproducibility,
+   - complexity of invariants,
+   - known environment sensitivity.
+4. **Update both matrices together** in the same PR so capability and support-level stay in sync.
+5. **Require at least one validation artifact** (test output, repro script output, or manual verification notes).
+
+## How to Test and Validate the Matrices
+
+The matrix is documentation, but it should be test-backed. A practical validation plan:
+
+### A) Baseline functional checks (per method)
+- Confirm DLL path validation behavior.
+- Confirm architecture mismatch handling.
+- Confirm method-specific happy path on a known-safe test process.
+
+### B) Method-specific checks
+- **CreateRemoteThread**: verify remote thread creation + `LoadLibraryW` return value.
+- **Manual Map**: verify PE parse, section map, relocations/imports/TLS pipeline, and entry-point success.
+- **QueueUserAPC**: verify APC queue succeeds and that execution occurs only when target thread becomes alertable.
+- **NtCreateThreadEx**: verify dynamic resolution and NTSTATUS handling.
+
+### C) Suggested validation tiers
+- **Tier 1 (CI deterministic)**: unit tests for parsing/validation and non-privileged helpers.
+- **Tier 2 (Windows CI/runner)**: method smoke tests with controlled fixture DLL and benign target.
+- **Tier 3 (Manual privileged)**: real-process injection checks documented in runbooks.
+
+### D) Evidence template for PRs
+When changing a method, add a short note like:
+
+```md
+Method: QueueUserAPC
+Capability change: clarified alertable-thread dependency
+Support level: Beta (unchanged)
+Validation:
+- unit: <command + result>
+- windows smoke: <command + result>
+- manual: <steps + observed behavior>
+```
 
 ## Recommended Usage
 
-**For Learning:**
-- Start with **CreateRemoteThread** (simplest)
-- Progress to **QueueUserAPC** (intermediate)
-- Tackle **Manual Mapping** last (most complex)
+**For learning:** CreateRemoteThread → QueueUserAPC → NtCreateThreadEx → Manual Map.
 
-**For Stealth:**
-- **Manual Mapping** (best stealth, most complex)
-- **NtCreateThreadEx** (good stealth, medium complexity)
+**For reliability-first workflows:** CreateRemoteThread.
 
-**For Reliability:**
-- **CreateRemoteThread** (most reliable)
-- **NtCreateThreadEx** (very reliable)
-
-**For Production:**
-- Depends on use case - if stealth required, use Manual Mapping
-- If reliability matters more, use CreateRemoteThread
-- Consider implementing multiple methods with fallback
-
-## Common Pitfalls
-
-### All Methods
-1. **Architecture mismatch** - Always check 32-bit vs 64-bit
-2. **Absolute paths** - Relative DLL paths don't work
-3. **Privilege requirements** - Need SeDebugPrivilege for many targets
-4. **Memory leaks** - Clean up on all code paths (use RAII)
-5. **Error handling** - Check every Windows API return value
-
-### CreateRemoteThread Specific
-1. **LoadLibrary address** - Must be valid in target process
-2. **Thread wait** - Should wait for thread completion to detect errors
-
-### Manual Mapping Specific
-1. **Section alignment** - Must respect alignment requirements
-2. **Import resolution** - All imports must be resolved correctly
-3. **Relocations** - Must apply if not at preferred base
-4. **TLS callbacks** - Often forgotten but necessary
-5. **Exception handlers** - Required for DLLs using C++ exceptions
-
-### QueueUserAPC Specific
-1. **Alertable waits** - Target may never enter alertable state
-2. **Multiple threads** - Queue to all threads for reliability
-3. **Timing** - May have significant delay before execution
-
-### NtCreateThreadEx Specific
-1. **Dynamic resolution** - Function address must be resolved at runtime
-2. **Return codes** - Uses NTSTATUS, not bool/HANDLE
-3. **Version compatibility** - Test on multiple Windows versions
+**For stealth-oriented research workflows:** Manual Map (with explicit fallback strategy).
 
 ## References
 
