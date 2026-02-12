@@ -122,10 +122,10 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
                     log::Level::Trace => (egui::Color32::from_rgb(125, 143, 141), "TRACE"),
                 };
 
-                egui::Frame::new()
+                egui::Frame::none()
                     .fill(egui::Color32::from_rgb(7, 16, 24))
                     .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(28, 67, 75)))
-                    .inner_margin(egui::Margin::symmetric(8, 6))
+                    .inner_margin(egui::Margin::symmetric(8.0, 6.0))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             let datetime: DateTime<Local> = entry.timestamp.into();

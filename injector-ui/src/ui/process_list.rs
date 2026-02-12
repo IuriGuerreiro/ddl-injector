@@ -64,13 +64,13 @@ pub fn render(
                     egui::Color32::from_rgb(10, 18, 24)
                 };
 
-                egui::Frame::new()
+                egui::Frame::none()
                     .fill(tint)
                     .stroke(egui::Stroke::new(
                         1.0,
                         egui::Color32::from_rgb(41, 112, 113),
                     ))
-                    .inner_margin(egui::Margin::symmetric(10, 8))
+                    .inner_margin(egui::Margin::symmetric(10.0, 8.0))
                     .show(ui, |ui| {
                         let response = ui.selectable_label(
                             is_selected,

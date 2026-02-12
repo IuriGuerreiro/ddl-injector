@@ -186,7 +186,7 @@ impl InjectorApp {
 
         style.spacing.button_padding = egui::vec2(10.0, 8.0);
         style.spacing.item_spacing = egui::vec2(10.0, 8.0);
-        style.spacing.window_margin = egui::Margin::same(10);
+        style.spacing.window_margin = egui::Margin::same(10.0);
 
         style.text_styles = [
             (
@@ -407,7 +407,7 @@ impl eframe::App for InjectorApp {
             .show(ctx, |ui| {
                 egui::Frame::group(ui.style())
                     .fill(egui::Color32::from_rgb(10, 20, 27))
-                    .inner_margin(egui::Margin::same(12))
+                    .inner_margin(egui::Margin::same(12.0))
                     .show(ui, |ui| {
                         ui::process_list::render(
                             ui,
@@ -426,7 +426,7 @@ impl eframe::App for InjectorApp {
             .show(ctx, |ui| {
                 egui::Frame::group(ui.style())
                     .fill(egui::Color32::from_rgb(8, 13, 24))
-                    .inner_margin(egui::Margin::same(10))
+                    .inner_margin(egui::Margin::same(10.0))
                     .show(ui, |ui| {
                         ui::log_viewer::render(ui, &self.logs, &mut self.log_viewer_state);
                     });
@@ -436,7 +436,7 @@ impl eframe::App for InjectorApp {
             .show(ctx, |ui| {
                 egui::Frame::group(ui.style())
                     .fill(egui::Color32::from_rgb(9, 22, 28))
-                    .inner_margin(egui::Margin::same(16))
+                    .inner_margin(egui::Margin::same(16.0))
                     .show(ui, |ui| {
                         ui::injection_panel::render(
                             ui,
