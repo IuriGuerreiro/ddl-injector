@@ -7,6 +7,7 @@ pub mod memory;
 pub mod pe;
 pub mod privilege;
 
-pub use error::{InjectionError, ProcessError};
+pub use error::{InjectionError, ProcessError, PrivilegeError};
 pub use process::{ProcessEnumerator, ProcessHandle, ProcessInfo};
 pub use injection::{InjectionMethod, CreateRemoteThreadInjector};
+pub use privilege::PrivilegeManager;
