@@ -4,8 +4,9 @@ use crate::error::PrivilegeError;
 use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, LUID, WIN32_ERROR};
 use windows::Win32::Security::{
     AdjustTokenPrivileges, CheckTokenMembership, CreateWellKnownSid, GetTokenInformation,
-    LookupPrivilegeValueW, TokenPrivileges, WinBuiltinAdministratorsSid, LUID_AND_ATTRIBUTES,
-    PSID, SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES, TOKEN_PRIVILEGES_ATTRIBUTES, TOKEN_QUERY,
+    LookupPrivilegeValueW, TokenPrivileges, WinBuiltinAdministratorsSid, LUID_AND_ATTRIBUTES, PSID,
+    SE_PRIVILEGE_ENABLED, TOKEN_ADJUST_PRIVILEGES, TOKEN_PRIVILEGES, TOKEN_PRIVILEGES_ATTRIBUTES,
+    TOKEN_QUERY,
 };
 use windows::Win32::System::Threading::{GetCurrentProcess, OpenProcessToken};
 
@@ -61,12 +62,11 @@ impl PrivilegeManager {
 
             // Check if current token is a member of Administrators group
             let mut is_member = Default::default();
-            CheckTokenMembership(None, PSID(sid_buffer.as_ptr() as *mut _), &mut is_member).map_err(
-                |e| {
+            CheckTokenMembership(None, PSID(sid_buffer.as_ptr() as *mut _), &mut is_member)
+                .map_err(|e| {
                     log::error!("Failed to check token membership: {}", e);
                     PrivilegeError::MembershipCheckFailed(std::io::Error::last_os_error())
-                },
-            )?;
+                })?;
 
             log::debug!("Administrator check: {}", is_member.as_bool());
             Ok(is_member.as_bool())
@@ -118,11 +118,12 @@ impl PrivilegeManager {
 
             // Lookup the LUID for SeDebugPrivilege
             let mut luid = LUID::default();
-            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid)
-                .map_err(|e| {
+            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid).map_err(
+                |e| {
                     log::error!("Failed to lookup privilege value: {}", e);
                     PrivilegeError::LookupPrivilegeFailed(std::io::Error::last_os_error())
-                })?;
+                },
+            )?;
 
             // Set up the privilege structure
             let tp = TOKEN_PRIVILEGES {
@@ -134,15 +135,7 @@ impl PrivilegeManager {
             };
 
             // Adjust the token privileges
-            AdjustTokenPrivileges(
-                token,
-                false,
-                Some(&tp),
-                0,
-                None,
-                None,
-            )
-            .map_err(|e| {
+            AdjustTokenPrivileges(token, false, Some(&tp), 0, None, None).map_err(|e| {
                 log::error!("Failed to adjust token privileges: {}", e);
                 PrivilegeError::AdjustPrivilegeFailed(std::io::Error::last_os_error())
             })?;
@@ -207,21 +200,16 @@ impl PrivilegeManager {
 
             // Lookup the LUID for SeDebugPrivilege
             let mut luid = LUID::default();
-            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid)
-                .map_err(|e| {
+            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid).map_err(
+                |e| {
                     log::error!("Failed to lookup privilege value: {}", e);
                     PrivilegeError::LookupPrivilegeFailed(std::io::Error::last_os_error())
-                })?;
+                },
+            )?;
 
             // Get token privileges size
             let mut return_length = 0u32;
-            let _ = GetTokenInformation(
-                token,
-                TokenPrivileges,
-                None,
-                0,
-                &mut return_length,
-            );
+            let _ = GetTokenInformation(token, TokenPrivileges, None, 0, &mut return_length);
 
             let mut buffer = vec![0u8; return_length as usize];
 
@@ -248,7 +236,8 @@ impl PrivilegeManager {
                 if priv_attr.Luid.LowPart == luid.LowPart
                     && priv_attr.Luid.HighPart == luid.HighPart
                 {
-                    let enabled = (priv_attr.Attributes & SE_PRIVILEGE_ENABLED) != TOKEN_PRIVILEGES_ATTRIBUTES(0);
+                    let enabled = (priv_attr.Attributes & SE_PRIVILEGE_ENABLED)
+                        != TOKEN_PRIVILEGES_ATTRIBUTES(0);
                     log::debug!("SeDebugPrivilege enabled: {}", enabled);
                     return Ok(enabled);
                 }

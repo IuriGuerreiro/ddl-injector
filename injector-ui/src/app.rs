@@ -1,13 +1,13 @@
 //! Main application state and logic.
 
-use eframe::egui;
-use injector_core::*;
-use injector_core::PrivilegeManager;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use crate::ui;
 use crate::config::Config;
 use crate::logging::LogEntry;
+use crate::ui;
+use eframe::egui;
+use injector_core::PrivilegeManager;
+use injector_core::*;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 /// Main application state.
 pub struct InjectorApp {
@@ -99,7 +99,6 @@ struct UiState {
     show_settings: bool,
 }
 
-
 impl InjectorApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // Load config
@@ -123,7 +122,11 @@ impl InjectorApp {
             false
         };
 
-        log::info!("Administrator: {}, SeDebugPrivilege: {}", is_admin, has_debug_privilege);
+        log::info!(
+            "Administrator: {}, SeDebugPrivilege: {}",
+            is_admin,
+            has_debug_privilege
+        );
 
         let mut app = Self {
             processes: Vec::new(),
@@ -174,9 +177,8 @@ impl InjectorApp {
         if let Err(e) = logging::DualLogger::init(logs) {
             eprintln!("Failed to initialize logger: {}", e);
             // Fallback to basic env_logger
-            env_logger::Builder::from_env(
-                env_logger::Env::default().default_filter_or("info")
-            ).init();
+            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+                .init();
         }
 
         // Rotate old logs (keep last 10)
@@ -351,11 +353,7 @@ impl eframe::App for InjectorApp {
                 .open(&mut self.ui_state.show_settings)
                 .resizable(false)
                 .show(ctx, |ui| {
-                    ui::settings::render(
-                        ui,
-                        &mut self.config,
-                        &mut self.injection_method,
-                    );
+                    ui::settings::render(ui, &mut self.config, &mut self.injection_method);
                 });
         }
 
@@ -383,20 +381,22 @@ impl eframe::App for InjectorApp {
             });
 
         // Central panel - Injection controls
-        let action = egui::CentralPanel::default().show(ctx, |ui| {
-            ui::injection_panel::render(
-                ui,
-                &self.processes,
-                self.selected_process,
-                &mut self.dll_path,
-                &mut self.injection_method,
-                &self.last_error,
-                self.ui_state.injecting,
-                self.is_admin,
-                self.has_debug_privilege,
-                &self.config.recent_dlls,
-            )
-        }).inner;
+        let action = egui::CentralPanel::default()
+            .show(ctx, |ui| {
+                ui::injection_panel::render(
+                    ui,
+                    &self.processes,
+                    self.selected_process,
+                    &mut self.dll_path,
+                    &mut self.injection_method,
+                    &self.last_error,
+                    self.ui_state.injecting,
+                    self.is_admin,
+                    self.has_debug_privilege,
+                    &self.config.recent_dlls,
+                )
+            })
+            .inner;
 
         // Handle injection panel actions
         match action {

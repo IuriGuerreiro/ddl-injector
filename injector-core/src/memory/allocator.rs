@@ -1,8 +1,8 @@
 //! Remote memory allocation with RAII cleanup.
 
+use crate::InjectionError;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Memory::*;
-use crate::InjectionError;
 
 /// RAII wrapper for remotely allocated memory.
 ///
@@ -28,19 +28,12 @@ impl RemoteMemory {
         size: usize,
         protection: PAGE_PROTECTION_FLAGS,
     ) -> Result<Self, InjectionError> {
-        let address = unsafe {
-            VirtualAllocEx(
-                process,
-                None,
-                size,
-                MEM_COMMIT | MEM_RESERVE,
-                protection,
-            )
-        };
+        let address =
+            unsafe { VirtualAllocEx(process, None, size, MEM_COMMIT | MEM_RESERVE, protection) };
 
         if address.is_null() {
             return Err(InjectionError::MemoryAllocationFailed(
-                std::io::Error::last_os_error()
+                std::io::Error::last_os_error(),
             ));
         }
 
@@ -72,10 +65,7 @@ impl RemoteMemory {
     ///
     /// # Errors
     /// Returns `InjectionError::MemoryAllocationFailed` on failure.
-    pub fn allocate_executable(
-        process: HANDLE,
-        size: usize,
-    ) -> Result<Self, InjectionError> {
+    pub fn allocate_executable(process: HANDLE, size: usize) -> Result<Self, InjectionError> {
         Self::allocate(process, size, PAGE_EXECUTE_READWRITE)
     }
 
@@ -101,11 +91,7 @@ impl Drop for RemoteMemory {
             );
 
             if let Err(e) = result {
-                log::warn!(
-                    "Failed to free remote memory at {:?}: {}",
-                    self.address,
-                    e
-                );
+                log::warn!("Failed to free remote memory at {:?}: {}", self.address, e);
             } else {
                 log::debug!("Freed remote memory at {:?}", self.address);
             }
@@ -198,8 +184,8 @@ mod tests {
             .expect("Failed with PAGE_READWRITE");
         assert!(!mem_rw.address().is_null());
 
-        let mem_r = RemoteMemory::allocate(process, 512, PAGE_READONLY)
-            .expect("Failed with PAGE_READONLY");
+        let mem_r =
+            RemoteMemory::allocate(process, 512, PAGE_READONLY).expect("Failed with PAGE_READONLY");
         assert!(!mem_r.address().is_null());
 
         let mem_ex = RemoteMemory::allocate(process, 512, PAGE_EXECUTE_READ)

@@ -1,14 +1,14 @@
 //! PE section mapping and memory protection handling.
 
+use super::headers::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
+use super::parser::PeFile;
+use crate::memory::write_memory;
+use crate::InjectionError;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Memory::{
-    VirtualProtectEx, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_READONLY, PAGE_READWRITE,
-    PAGE_PROTECTION_FLAGS,
+    VirtualProtectEx, PAGE_EXECUTE_READ, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS,
+    PAGE_READONLY, PAGE_READWRITE,
 };
-use crate::InjectionError;
-use crate::memory::write_memory;
-use super::parser::PeFile;
-use super::headers::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WRITE};
 
 /// Map PE headers and sections to remote process memory.
 ///
@@ -22,17 +22,16 @@ pub unsafe fn map_sections(
     pe: &PeFile,
     base_address: *mut u8,
 ) -> Result<(), InjectionError> {
-    log::info!("Mapping PE sections to remote memory at 0x{:p}", base_address);
+    log::info!(
+        "Mapping PE sections to remote memory at 0x{:p}",
+        base_address
+    );
 
     // Step 1: Copy PE headers
     let headers_size = pe.size_of_headers() as usize;
     log::debug!("Copying PE headers ({} bytes)", headers_size);
 
-    write_memory(
-        process,
-        base_address,
-        &pe.data[..headers_size],
-    )?;
+    write_memory(process, base_address, &pe.data[..headers_size])?;
 
     // Step 2: Map each section
     for (i, section) in pe.sections.iter().enumerate() {
@@ -71,11 +70,7 @@ pub unsafe fn map_sections(
         let section_data = &pe.data[raw_offset..raw_offset + copy_size];
 
         // Write section data to remote process
-        write_memory(
-            process,
-            dest_addr,
-            section_data,
-        )?;
+        write_memory(process, dest_addr, section_data)?;
 
         log::debug!("    Successfully mapped {} bytes", copy_size);
     }
@@ -125,9 +120,10 @@ pub unsafe fn protect_sections(
                 &mut old_protection,
             )
             .map_err(|_| {
-                InjectionError::MemoryAllocationFailed(std::io::Error::other(
-                    format!("Failed to protect section '{}'", section_name)
-                ))
+                InjectionError::MemoryAllocationFailed(std::io::Error::other(format!(
+                    "Failed to protect section '{}'",
+                    section_name
+                )))
             })?;
         }
     }

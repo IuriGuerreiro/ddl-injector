@@ -1,11 +1,11 @@
 //! PE base relocation processing.
 
+use super::headers::*;
+use super::parser::PeFile;
+use crate::memory::{read_memory_vec, write_memory};
+use crate::InjectionError;
 use std::mem;
 use windows::Win32::Foundation::HANDLE;
-use crate::InjectionError;
-use crate::memory::{read_memory_vec, write_memory};
-use super::parser::PeFile;
-use super::headers::*;
 
 /// Process base relocations for the PE file.
 ///
@@ -108,8 +108,12 @@ pub unsafe fn process_relocations(
 
                     // Read current value
                     let current_bytes = read_memory_vec(process, target_address, 4)?;
-                    let current_value =
-                        u32::from_le_bytes([current_bytes[0], current_bytes[1], current_bytes[2], current_bytes[3]]);
+                    let current_value = u32::from_le_bytes([
+                        current_bytes[0],
+                        current_bytes[1],
+                        current_bytes[2],
+                        current_bytes[3],
+                    ]);
 
                     // Apply relocation
                     let new_value = (current_value as i64).wrapping_add(delta) as u32;
@@ -179,8 +183,7 @@ mod tests {
             return;
         }
 
-        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
-            .expect("Failed to parse test DLL");
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
 
         let reloc_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_BASERELOC);
         // Relocations might not exist in all DLLs

@@ -5,8 +5,7 @@ use crate::process::ProcessInfo;
 use std::mem;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::Diagnostics::ToolHelp::{
-    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
-    TH32CS_SNAPPROCESS,
+    CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
 };
 
 /// Enumerates running processes on the system
@@ -33,8 +32,9 @@ impl ProcessEnumerator {
     pub fn enumerate() -> Result<Vec<ProcessInfo>, ProcessError> {
         unsafe {
             // Create a snapshot of all processes
-            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
-                .map_err(|e| ProcessError::SnapshotFailed(std::io::Error::from_raw_os_error(e.code().0)))?;
+            let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0).map_err(|e| {
+                ProcessError::SnapshotFailed(std::io::Error::from_raw_os_error(e.code().0))
+            })?;
 
             // Use RAII guard to ensure snapshot is closed
             let _guard = SnapshotGuard(snapshot);

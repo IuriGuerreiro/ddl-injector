@@ -1,10 +1,10 @@
 //! PE file format parser.
 
-use std::path::Path;
+use super::headers::*;
+use crate::InjectionError;
 use std::fs;
 use std::mem;
-use crate::InjectionError;
-use super::headers::*;
+use std::path::Path;
 
 /// Represents a parsed PE file with all its headers and sections.
 pub struct PeFile {
@@ -29,8 +29,7 @@ impl PeFile {
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, InjectionError> {
         log::debug!("Loading PE file from: {}", path.as_ref().display());
 
-        let data = fs::read(path.as_ref())
-            .map_err(InjectionError::PeReadError)?;
+        let data = fs::read(path.as_ref()).map_err(InjectionError::PeReadError)?;
 
         Self::from_bytes(data)
     }
@@ -46,7 +45,8 @@ impl PeFile {
             ));
         }
 
-        let dos_header = unsafe { std::ptr::read_unaligned(data.as_ptr() as *const ImageDosHeader) };
+        let dos_header =
+            unsafe { std::ptr::read_unaligned(data.as_ptr() as *const ImageDosHeader) };
 
         log::debug!(
             "DOS header: magic=0x{:04X}, e_lfanew=0x{:08X}",
@@ -280,15 +280,15 @@ impl PeFile {
 
     /// Read data at an RVA.
     pub fn read_at_rva(&self, rva: u32, size: usize) -> Result<&[u8], InjectionError> {
-        let offset = self.rva_to_offset(rva)
-            .ok_or_else(|| InjectionError::InvalidPeFile(
-                format!("Invalid RVA: 0x{:08X}", rva)
-            ))?;
+        let offset = self
+            .rva_to_offset(rva)
+            .ok_or_else(|| InjectionError::InvalidPeFile(format!("Invalid RVA: 0x{:08X}", rva)))?;
 
         if offset + size > self.data.len() {
-            return Err(InjectionError::InvalidPeFile(
-                format!("Read beyond file bounds at RVA 0x{:08X}", rva)
-            ));
+            return Err(InjectionError::InvalidPeFile(format!(
+                "Read beyond file bounds at RVA 0x{:08X}",
+                rva
+            )));
         }
 
         Ok(&self.data[offset..offset + size])
@@ -296,16 +296,14 @@ impl PeFile {
 
     /// Read a null-terminated string at an RVA.
     pub fn read_string_at_rva(&self, rva: u32) -> Result<String, InjectionError> {
-        let offset = self.rva_to_offset(rva)
-            .ok_or_else(|| InjectionError::InvalidPeFile(
-                format!("Invalid RVA for string: 0x{:08X}", rva)
-            ))?;
+        let offset = self.rva_to_offset(rva).ok_or_else(|| {
+            InjectionError::InvalidPeFile(format!("Invalid RVA for string: 0x{:08X}", rva))
+        })?;
 
         let bytes = &self.data[offset..];
-        let len = bytes.iter().position(|&c| c == 0)
-            .ok_or_else(|| InjectionError::InvalidPeFile(
-                format!("Unterminated string at RVA 0x{:08X}", rva)
-            ))?;
+        let len = bytes.iter().position(|&c| c == 0).ok_or_else(|| {
+            InjectionError::InvalidPeFile(format!("Unterminated string at RVA 0x{:08X}", rva))
+        })?;
 
         Ok(String::from_utf8_lossy(&bytes[..len]).to_string())
     }
@@ -388,7 +386,7 @@ mod tests {
         // Valid DOS signature
         data[0] = 0x4D; // 'M'
         data[1] = 0x5A; // 'Z'
-        // Set e_lfanew to offset 64
+                        // Set e_lfanew to offset 64
         data[60] = 64;
         data[61] = 0;
         data[62] = 0;

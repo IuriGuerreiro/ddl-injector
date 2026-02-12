@@ -37,7 +37,11 @@ pub fn render(
         })
         .collect();
 
-    ui.label(format!("{} processes (showing {})", processes.len(), filtered.len()));
+    ui.label(format!(
+        "{} processes (showing {})",
+        processes.len(),
+        filtered.len()
+    ));
 
     ui.separator();
 

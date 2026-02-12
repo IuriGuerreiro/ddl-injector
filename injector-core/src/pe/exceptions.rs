@@ -1,12 +1,14 @@
 //! Exception handler registration (x64 only).
 
-use windows::Win32::Foundation::HANDLE;
-use windows::Win32::System::Threading::{CreateRemoteThread, WaitForSingleObject, GetExitCodeThread, INFINITE};
-use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
-use crate::InjectionError;
-use crate::memory::{write_memory, RemoteMemory};
-use super::parser::PeFile;
 use super::headers::*;
+use super::parser::PeFile;
+use crate::memory::{write_memory, RemoteMemory};
+use crate::InjectionError;
+use windows::Win32::Foundation::HANDLE;
+use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
+use windows::Win32::System::Threading::{
+    CreateRemoteThread, GetExitCodeThread, WaitForSingleObject, INFINITE,
+};
 
 /// Register exception handlers for x64 DLLs.
 ///
@@ -43,19 +45,17 @@ pub unsafe fn register_exception_handlers(
 
     // Get RtlAddFunctionTable address from ntdll.dll
     let ntdll = unsafe {
-        GetModuleHandleA(windows::core::s!("ntdll.dll"))
-            .map_err(|_| {
-                InjectionError::InvalidPeFile("Failed to get ntdll.dll handle".to_string())
-            })?
+        GetModuleHandleA(windows::core::s!("ntdll.dll")).map_err(|_| {
+            InjectionError::InvalidPeFile("Failed to get ntdll.dll handle".to_string())
+        })?
     };
 
     let rtl_add_function_table = unsafe {
-        GetProcAddress(ntdll, windows::core::s!("RtlAddFunctionTable"))
-            .ok_or_else(|| {
-                InjectionError::InvalidPeFile(
-                    "Failed to find RtlAddFunctionTable in ntdll.dll".to_string(),
-                )
-            })?
+        GetProcAddress(ntdll, windows::core::s!("RtlAddFunctionTable")).ok_or_else(|| {
+            InjectionError::InvalidPeFile(
+                "Failed to find RtlAddFunctionTable in ntdll.dll".to_string(),
+            )
+        })?
     };
 
     log::debug!(
@@ -100,7 +100,10 @@ pub unsafe fn register_exception_handlers(
             process,
             None,
             0,
-            Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
+            Some(std::mem::transmute::<
+                *mut u8,
+                unsafe extern "system" fn(*mut std::ffi::c_void) -> u32,
+            >(shellcode_mem.address())),
             None,
             0,
             None,
@@ -116,12 +119,9 @@ pub unsafe fn register_exception_handlers(
     // Check exit code (return value of RtlAddFunctionTable)
     let mut exit_code = 0u32;
     unsafe {
-        GetExitCodeThread(thread, &mut exit_code)
-            .map_err(|_| {
-                InjectionError::InvalidPeFile(
-                    "Failed to get RtlAddFunctionTable exit code".to_string(),
-                )
-            })?;
+        GetExitCodeThread(thread, &mut exit_code).map_err(|_| {
+            InjectionError::InvalidPeFile("Failed to get RtlAddFunctionTable exit code".to_string())
+        })?;
     }
 
     if exit_code == 0 {
@@ -201,8 +201,7 @@ mod tests {
             return;
         }
 
-        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
-            .expect("Failed to parse test DLL");
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
 
         if pe.is_64bit {
             let exception_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_EXCEPTION);

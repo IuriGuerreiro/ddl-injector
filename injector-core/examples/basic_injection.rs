@@ -10,8 +10,7 @@
 //!   cargo run --example basic_injection -- notepad.exe C:\path\to\test_dll.dll
 
 use injector_core::{
-    CreateRemoteThreadInjector, InjectionMethod, PrivilegeManager, ProcessEnumerator,
-    ProcessHandle,
+    CreateRemoteThreadInjector, InjectionMethod, PrivilegeManager, ProcessEnumerator, ProcessHandle,
 };
 use std::env;
 use std::path::PathBuf;
@@ -28,7 +27,10 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 3 {
         eprintln!("Usage: {} <process_name> <dll_path>", args[0]);
-        eprintln!("Example: {} notepad.exe C:\\\\path\\\\to\\\\test_dll.dll", args[0]);
+        eprintln!(
+            "Example: {} notepad.exe C:\\\\path\\\\to\\\\test_dll.dll",
+            args[0]
+        );
         std::process::exit(1);
     }
 
@@ -68,10 +70,16 @@ fn inject(process_name: &str, dll_path: &PathBuf) -> Result<(), Box<dyn std::err
 
     // If multiple processes found, use the first one
     let target_process = &processes[0];
-    println!("    ✓ Found process: {} (PID: {})", target_process.name, target_process.pid);
+    println!(
+        "    ✓ Found process: {} (PID: {})",
+        target_process.name, target_process.pid
+    );
 
     if processes.len() > 1 {
-        println!("    ⚠ Note: Multiple instances found. Using PID {}", target_process.pid);
+        println!(
+            "    ⚠ Note: Multiple instances found. Using PID {}",
+            target_process.pid
+        );
         for (i, p) in processes.iter().enumerate().skip(1) {
             println!("           Other instance {}: PID {}", i, p.pid);
         }
@@ -92,7 +100,9 @@ fn inject(process_name: &str, dll_path: &PathBuf) -> Result<(), Box<dyn std::err
     // Step 4: Validate DLL path
     println!("[4/5] Validating DLL path...");
     if !dll_path.is_absolute() {
-        return Err("DLL path must be absolute. Use full path (e.g., C:\\path\\to\\dll.dll)".into());
+        return Err(
+            "DLL path must be absolute. Use full path (e.g., C:\\path\\to\\dll.dll)".into(),
+        );
     }
     if !dll_path.exists() {
         return Err(format!("DLL file not found: {}", dll_path.display()).into());

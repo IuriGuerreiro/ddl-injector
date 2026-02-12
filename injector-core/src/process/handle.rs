@@ -41,15 +41,10 @@ impl ProcessHandle {
             let handle = OpenProcess(rights, false, pid);
 
             match handle {
-                Ok(h) if h.is_invalid() => {
-                    Err(ProcessError::OpenProcessFailed(
-                        std::io::Error::last_os_error(),
-                    ))
-                }
-                Ok(h) => Ok(Self {
-                    handle: h,
-                    pid,
-                }),
+                Ok(h) if h.is_invalid() => Err(ProcessError::OpenProcessFailed(
+                    std::io::Error::last_os_error(),
+                )),
+                Ok(h) => Ok(Self { handle: h, pid }),
                 Err(_) => Err(ProcessError::OpenProcessFailed(
                     std::io::Error::last_os_error(),
                 )),
@@ -176,6 +171,9 @@ mod tests {
 
         // If we can open the process again, the previous handle was properly cleaned up
         let handle = ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION);
-        assert!(handle.is_ok(), "Should be able to open process after previous handle dropped");
+        assert!(
+            handle.is_ok(),
+            "Should be able to open process after previous handle dropped"
+        );
     }
 }

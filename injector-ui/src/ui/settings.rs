@@ -1,14 +1,10 @@
 //! Settings panel UI component.
 
-use eframe::egui;
-use crate::config::Config;
 use crate::app::InjectionMethodType;
+use crate::config::Config;
+use eframe::egui;
 
-pub fn render(
-    ui: &mut egui::Ui,
-    config: &mut Config,
-    current_method: &mut InjectionMethodType,
-) {
+pub fn render(ui: &mut egui::Ui, config: &mut Config, current_method: &mut InjectionMethodType) {
     ui.heading("Settings");
 
     ui.add_space(10.0);
@@ -25,22 +21,22 @@ pub fn render(
                 ui.selectable_value(
                     &mut method,
                     crate::config::SerializableMethod::CreateRemoteThread,
-                    "CreateRemoteThread"
+                    "CreateRemoteThread",
                 );
                 ui.selectable_value(
                     &mut method,
                     crate::config::SerializableMethod::ManualMap,
-                    "Manual Map"
+                    "Manual Map",
                 );
                 ui.selectable_value(
                     &mut method,
                     crate::config::SerializableMethod::QueueUserApc,
-                    "QueueUserAPC"
+                    "QueueUserAPC",
                 );
                 ui.selectable_value(
                     &mut method,
                     crate::config::SerializableMethod::NtCreateThreadEx,
-                    "NtCreateThreadEx"
+                    "NtCreateThreadEx",
                 );
             });
 
@@ -57,9 +53,11 @@ pub fn render(
         ui.label("Auto-Refresh Process List:");
 
         ui.horizontal(|ui| {
-            ui.add(egui::Slider::new(&mut config.auto_refresh_interval, 0..=60)
-                .text("seconds")
-                .suffix("s"));
+            ui.add(
+                egui::Slider::new(&mut config.auto_refresh_interval, 0..=60)
+                    .text("seconds")
+                    .suffix("s"),
+            );
 
             if config.auto_refresh_interval == 0 {
                 ui.label("(disabled)");

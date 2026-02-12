@@ -1,8 +1,8 @@
 //! Writing data to remote process memory.
 
+use crate::InjectionError;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
-use crate::InjectionError;
 
 /// Write data to a remote process's memory.
 ///
@@ -19,11 +19,7 @@ use crate::InjectionError;
 /// - `address` is valid in the remote process
 /// - Remote memory is large enough to hold `data`
 /// - Remote memory has write permissions
-pub fn write_memory(
-    process: HANDLE,
-    address: *mut u8,
-    data: &[u8],
-) -> Result<(), InjectionError> {
+pub fn write_memory(process: HANDLE, address: *mut u8, data: &[u8]) -> Result<(), InjectionError> {
     let mut bytes_written = 0;
 
     unsafe {
@@ -34,9 +30,7 @@ pub fn write_memory(
             data.len(),
             Some(&mut bytes_written),
         )
-        .map_err(|_| InjectionError::MemoryWriteFailed(
-            std::io::Error::last_os_error()
-        ))?;
+        .map_err(|_| InjectionError::MemoryWriteFailed(std::io::Error::last_os_error()))?;
     }
 
     if bytes_written != data.len() {
@@ -45,9 +39,9 @@ pub fn write_memory(
             bytes_written,
             data.len()
         );
-        return Err(InjectionError::MemoryWriteFailed(
-            std::io::Error::other("Incomplete write operation")
-        ));
+        return Err(InjectionError::MemoryWriteFailed(std::io::Error::other(
+            "Incomplete write operation",
+        )));
     }
 
     log::debug!(
@@ -69,12 +63,7 @@ pub fn write_wide_string(
     let wide: Vec<u16> = text.encode_utf16().chain(std::iter::once(0)).collect();
 
     // Write as bytes
-    let bytes = unsafe {
-        std::slice::from_raw_parts(
-            wide.as_ptr() as *const u8,
-            wide.len() * 2,
-        )
-    };
+    let bytes = unsafe { std::slice::from_raw_parts(wide.as_ptr() as *const u8, wide.len() * 2) };
 
     write_memory(process, address, bytes)
 }
@@ -82,10 +71,10 @@ pub fn write_wide_string(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use windows::Win32::System::Threading::GetCurrentProcess;
     use crate::memory::allocator::RemoteMemory;
     use crate::memory::reader::read_memory_vec;
     use windows::Win32::System::Memory::PAGE_READWRITE;
+    use windows::Win32::System::Threading::GetCurrentProcess;
 
     #[test]
     fn test_write_memory_to_own_process() {
@@ -100,9 +89,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Verify by reading back
-        let read_back = unsafe {
-            read_memory_vec(process, mem.address(), test_data.len())
-        };
+        let read_back = unsafe { read_memory_vec(process, mem.address(), test_data.len()) };
         assert_eq!(&read_back.unwrap()[..], test_data);
     }
 
@@ -125,15 +112,10 @@ mod tests {
             .collect();
 
         let expected_bytes = unsafe {
-            std::slice::from_raw_parts(
-                expected_wide.as_ptr() as *const u8,
-                expected_wide.len() * 2,
-            )
+            std::slice::from_raw_parts(expected_wide.as_ptr() as *const u8, expected_wide.len() * 2)
         };
 
-        let read_back = unsafe {
-            read_memory_vec(process, mem.address(), expected_bytes.len())
-        };
+        let read_back = unsafe { read_memory_vec(process, mem.address(), expected_bytes.len()) };
 
         assert_eq!(&read_back.unwrap()[..], expected_bytes);
     }
@@ -151,9 +133,7 @@ mod tests {
 
         // Read back and verify null terminator
         let expected_len = (test_string.len() + 1) * 2; // +1 for null terminator
-        let read_back = unsafe {
-            read_memory_vec(process, mem.address(), expected_len)
-        };
+        let read_back = unsafe { read_memory_vec(process, mem.address(), expected_len) };
 
         let read_back = read_back.unwrap();
 
@@ -177,9 +157,7 @@ mod tests {
             assert!(result.is_ok());
 
             // Verify
-            let read_back = unsafe {
-                read_memory_vec(process, mem.address(), size)
-            };
+            let read_back = unsafe { read_memory_vec(process, mem.address(), size) };
             assert_eq!(read_back.unwrap(), test_data);
         }
     }
@@ -218,15 +196,10 @@ mod tests {
             .collect();
 
         let expected_bytes = unsafe {
-            std::slice::from_raw_parts(
-                expected_wide.as_ptr() as *const u8,
-                expected_wide.len() * 2,
-            )
+            std::slice::from_raw_parts(expected_wide.as_ptr() as *const u8, expected_wide.len() * 2)
         };
 
-        let read_back = unsafe {
-            read_memory_vec(process, mem.address(), expected_bytes.len())
-        };
+        let read_back = unsafe { read_memory_vec(process, mem.address(), expected_bytes.len()) };
 
         assert_eq!(&read_back.unwrap()[..], expected_bytes);
     }

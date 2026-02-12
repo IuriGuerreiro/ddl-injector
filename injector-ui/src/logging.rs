@@ -1,10 +1,10 @@
 //! Custom logging implementation for UI display and file output.
 
 use log::{Level, Metadata, Record};
-use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 /// Log entry with full details.
 #[derive(Clone)]
@@ -25,8 +25,7 @@ impl DualLogger {
     /// Create a new dual logger.
     pub fn new(ui_logs: Arc<Mutex<Vec<LogEntry>>>) -> anyhow::Result<Self> {
         // Create logs directory
-        let mut log_dir = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."));
+        let mut log_dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
         log_dir.push("DllInjector");
         log_dir.push("logs");
         fs::create_dir_all(&log_dir)?;
@@ -39,11 +38,10 @@ impl DualLogger {
         let file = fs::File::create(log_file)?;
 
         // Build the internal env_logger
-        let file_logger = env_logger::Builder::from_env(
-            env_logger::Env::default().default_filter_or("info")
-        )
-        .target(env_logger::Target::Pipe(Box::new(file)))
-        .build();
+        let file_logger =
+            env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+                .target(env_logger::Target::Pipe(Box::new(file)))
+                .build();
 
         Ok(Self {
             ui_logs,
@@ -102,8 +100,7 @@ impl log::Log for DualLogger {
 
 /// Rotate log files, keeping only the last N.
 pub fn rotate_logs(keep_count: usize) -> anyhow::Result<()> {
-    let mut log_dir = dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."));
+    let mut log_dir = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
     log_dir.push("DllInjector");
     log_dir.push("logs");
 
@@ -114,16 +111,13 @@ pub fn rotate_logs(keep_count: usize) -> anyhow::Result<()> {
     // Get all log files
     let mut log_files: Vec<_> = fs::read_dir(&log_dir)?
         .filter_map(|entry| entry.ok())
-        .filter(|entry| {
-            entry.path()
-                .extension()
-                .and_then(|s| s.to_str()) == Some("log")
-        })
+        .filter(|entry| entry.path().extension().and_then(|s| s.to_str()) == Some("log"))
         .collect();
 
     // Sort by modified time (newest first)
     log_files.sort_by_key(|entry| {
-        entry.metadata()
+        entry
+            .metadata()
             .and_then(|m| m.modified())
             .unwrap_or(SystemTime::UNIX_EPOCH)
     });

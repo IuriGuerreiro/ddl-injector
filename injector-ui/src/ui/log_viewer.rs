@@ -1,9 +1,9 @@
 //! Enhanced log viewer UI component with filtering and search.
 
-use eframe::egui;
-use std::sync::{Arc, Mutex};
 use crate::logging::LogEntry;
 use chrono::{DateTime, Local};
+use eframe::egui;
+use std::sync::{Arc, Mutex};
 
 /// State for the log viewer UI.
 #[derive(Default)]
@@ -26,8 +26,12 @@ impl LogViewerState {
     /// Check if a log entry passes the level filter.
     fn passes_level_filter(&self, level: log::Level) -> bool {
         // If no filters are enabled, show all
-        if !self.filter_error && !self.filter_warn && !self.filter_info
-            && !self.filter_debug && !self.filter_trace {
+        if !self.filter_error
+            && !self.filter_warn
+            && !self.filter_info
+            && !self.filter_debug
+            && !self.filter_trace
+        {
             return true;
         }
 
@@ -99,21 +103,21 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
 
     // Stats display
     if let Ok(log_vec) = logs.lock() {
-        let filtered_count = log_vec.iter()
-            .filter(|e| state.passes_filters(e))
-            .count();
+        let filtered_count = log_vec.iter().filter(|e| state.passes_filters(e)).count();
         let total_count = log_vec.len();
 
         ui.horizontal(|ui| {
-            ui.label(format!("Showing {} of {} messages", filtered_count, total_count));
+            ui.label(format!(
+                "Showing {} of {} messages",
+                filtered_count, total_count
+            ));
         });
     }
 
     ui.separator();
 
     // Scrollable log area
-    let scroll_area = egui::ScrollArea::vertical()
-        .auto_shrink([false, false]);
+    let scroll_area = egui::ScrollArea::vertical().auto_shrink([false, false]);
 
     let scroll_area = if state.auto_scroll {
         scroll_area.stick_to_bottom(true)
@@ -123,9 +127,8 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
 
     scroll_area.show(ui, |ui| {
         if let Ok(log_vec) = logs.lock() {
-            let filtered_logs: Vec<&LogEntry> = log_vec.iter()
-                .filter(|e| state.passes_filters(e))
-                .collect();
+            let filtered_logs: Vec<&LogEntry> =
+                log_vec.iter().filter(|e| state.passes_filters(e)).collect();
 
             for entry in &filtered_logs {
                 ui.horizontal(|ui| {
@@ -147,8 +150,10 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
 
                     // Target (if not empty)
                     if !entry.target.is_empty() {
-                        ui.label(egui::RichText::new(format!("[{}]", entry.target))
-                            .color(egui::Color32::LIGHT_BLUE));
+                        ui.label(
+                            egui::RichText::new(format!("[{}]", entry.target))
+                                .color(egui::Color32::LIGHT_BLUE),
+                        );
                     }
 
                     // Message
@@ -185,11 +190,12 @@ fn export_logs(logs: &Arc<Mutex<Vec<LogEntry>>>) {
                 let level = format!("{:5}", entry.level.to_string());
 
                 if entry.target.is_empty() {
-                    content.push_str(&format!("[{}] {} {}\n",
-                        timestamp, level, entry.message));
+                    content.push_str(&format!("[{}] {} {}\n", timestamp, level, entry.message));
                 } else {
-                    content.push_str(&format!("[{}] {} [{}] {}\n",
-                        timestamp, level, entry.target, entry.message));
+                    content.push_str(&format!(
+                        "[{}] {} [{}] {}\n",
+                        timestamp, level, entry.target, entry.message
+                    ));
                 }
             }
 

@@ -45,11 +45,11 @@ impl ProcessInfo {
     /// Attempts to retrieve the full executable path for this process
     /// Returns Ok(None) for protected processes without access
     pub fn try_get_path(&mut self) -> Result<Option<PathBuf>, ProcessError> {
+        use crate::process::ProcessHandle;
+        use windows::core::PWSTR;
         use windows::Win32::System::Threading::{
             QueryFullProcessImageNameW, PROCESS_QUERY_LIMITED_INFORMATION,
         };
-        use windows::core::PWSTR;
-        use crate::process::ProcessHandle;
 
         // Try to open process with limited query permission
         let handle = match ProcessHandle::open(self.pid, PROCESS_QUERY_LIMITED_INFORMATION) {

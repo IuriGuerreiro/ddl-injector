@@ -1,9 +1,9 @@
 //! Thread enumeration and management.
 
+use crate::error::ProcessError;
+use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::Diagnostics::ToolHelp::*;
 use windows::Win32::System::Threading::*;
-use windows::Win32::Foundation::{CloseHandle, HANDLE};
-use crate::error::ProcessError;
 
 /// Information about a thread.
 #[derive(Debug, Clone)]
@@ -23,9 +23,7 @@ impl ThreadHandle {
     pub fn open(thread_id: u32, access: THREAD_ACCESS_RIGHTS) -> Result<Self, ProcessError> {
         let handle = unsafe {
             OpenThread(access, false, thread_id)
-                .map_err(|_| ProcessError::OpenThreadFailed(
-                    std::io::Error::last_os_error()
-                ))?
+                .map_err(|_| ProcessError::OpenThreadFailed(std::io::Error::last_os_error()))?
         };
 
         Ok(Self { handle })
@@ -55,9 +53,7 @@ impl ThreadEnumerator {
     pub fn enumerate(process_id: u32) -> Result<Vec<ThreadInfo>, ProcessError> {
         let snapshot = unsafe {
             CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0)
-                .map_err(|_| ProcessError::ThreadSnapshotFailed(
-                    std::io::Error::last_os_error()
-                ))?
+                .map_err(|_| ProcessError::ThreadSnapshotFailed(std::io::Error::last_os_error()))?
         };
 
         let _guard = SnapshotGuard(snapshot);
@@ -68,10 +64,9 @@ impl ThreadEnumerator {
         };
 
         unsafe {
-            Thread32First(snapshot, &mut entry)
-                .map_err(|_| ProcessError::ThreadEnumerationFailed(
-                    std::io::Error::last_os_error()
-                ))?;
+            Thread32First(snapshot, &mut entry).map_err(|_| {
+                ProcessError::ThreadEnumerationFailed(std::io::Error::last_os_error())
+            })?;
         }
 
         let mut threads = Vec::new();
@@ -174,10 +169,8 @@ mod tests {
             let handle_value;
 
             {
-                let handle = ThreadHandle::open(
-                    thread.thread_id,
-                    THREAD_QUERY_INFORMATION,
-                ).unwrap();
+                let handle =
+                    ThreadHandle::open(thread.thread_id, THREAD_QUERY_INFORMATION).unwrap();
 
                 handle_value = handle.as_handle();
                 assert!(!handle_value.is_invalid());

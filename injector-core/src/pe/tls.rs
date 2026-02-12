@@ -1,12 +1,12 @@
 //! TLS callback processing.
 
+use super::headers::*;
+use super::parser::PeFile;
+use crate::memory::{write_memory, RemoteMemory};
+use crate::InjectionError;
 use std::mem;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Threading::{CreateRemoteThread, WaitForSingleObject, INFINITE};
-use crate::InjectionError;
-use crate::memory::{write_memory, RemoteMemory};
-use super::parser::PeFile;
-use super::headers::*;
 
 /// Process TLS callbacks before DllMain.
 ///
@@ -110,10 +110,7 @@ fn process_tls_callbacks_64(
         let shellcode = create_tls_callback_shellcode_64(base_address, callback_rva);
 
         // Allocate memory for shellcode
-        let shellcode_mem = RemoteMemory::allocate_executable(
-            process,
-            shellcode.len(),
-        )?;
+        let shellcode_mem = RemoteMemory::allocate_executable(process, shellcode.len())?;
 
         // Write shellcode
         write_memory(process, shellcode_mem.address(), &shellcode)?;
@@ -124,7 +121,10 @@ fn process_tls_callbacks_64(
                 process,
                 None,
                 0,
-                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
+                Some(std::mem::transmute::<
+                    *mut u8,
+                    unsafe extern "system" fn(*mut std::ffi::c_void) -> u32,
+                >(shellcode_mem.address())),
                 None,
                 0,
                 None,
@@ -204,10 +204,7 @@ fn process_tls_callbacks_32(
         let shellcode = create_tls_callback_shellcode_32(base_address, callback_rva);
 
         // Allocate memory for shellcode
-        let shellcode_mem = RemoteMemory::allocate_executable(
-            process,
-            shellcode.len(),
-        )?;
+        let shellcode_mem = RemoteMemory::allocate_executable(process, shellcode.len())?;
 
         // Write shellcode
         write_memory(process, shellcode_mem.address(), &shellcode)?;
@@ -218,7 +215,10 @@ fn process_tls_callbacks_32(
                 process,
                 None,
                 0,
-                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
+                Some(std::mem::transmute::<
+                    *mut u8,
+                    unsafe extern "system" fn(*mut std::ffi::c_void) -> u32,
+                >(shellcode_mem.address())),
                 None,
                 0,
                 None,
@@ -329,8 +329,7 @@ mod tests {
             return;
         }
 
-        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
-            .expect("Failed to parse test DLL");
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
 
         let tls_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_TLS);
         // TLS might not exist in all DLLs - this is okay

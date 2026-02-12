@@ -46,9 +46,7 @@ pub fn validate_dll_path(path: &Path) -> InjectionResult<()> {
 
     // File must exist
     if !path.exists() {
-        return Err(InjectionError::DllNotFound(
-            path.display().to_string()
-        ));
+        return Err(InjectionError::DllNotFound(path.display().to_string()));
     }
 
     // Should have .dll extension
@@ -63,8 +61,8 @@ pub fn validate_dll_path(path: &Path) -> InjectionResult<()> {
 ///
 /// Returns true if process is 64-bit, false if 32-bit.
 pub fn is_process_64bit(handle: &ProcessHandle) -> InjectionResult<bool> {
-    use windows::Win32::System::Threading::IsWow64Process;
     use windows::Win32::Foundation::BOOL;
+    use windows::Win32::System::Threading::IsWow64Process;
 
     let mut is_wow64 = BOOL::from(false);
 
@@ -91,8 +89,16 @@ pub fn validate_architecture(handle: &ProcessHandle) -> InjectionResult<()> {
 
     if target_is_64bit != injector_is_64bit {
         return Err(InjectionError::ArchitectureMismatch {
-            injector: if injector_is_64bit { "64-bit".into() } else { "32-bit".into() },
-            target: if target_is_64bit { "64-bit".into() } else { "32-bit".into() },
+            injector: if injector_is_64bit {
+                "64-bit".into()
+            } else {
+                "32-bit".into()
+            },
+            target: if target_is_64bit {
+                "64-bit".into()
+            } else {
+                "32-bit".into()
+            },
         });
     }
 

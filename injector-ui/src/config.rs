@@ -1,9 +1,9 @@
 //! Application configuration and persistence.
 
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
-use std::fs;
 use crate::app::InjectionMethodType;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 
 /// Application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -84,8 +84,7 @@ impl Config {
     ///
     /// Returns: %APPDATA%\DllInjector\config.json
     pub fn config_path() -> PathBuf {
-        let mut path = dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."));
+        let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
         path.push("DllInjector");
         fs::create_dir_all(&path).ok();
         path.push("config.json");
@@ -97,18 +96,16 @@ impl Config {
         let path = Self::config_path();
 
         match fs::read_to_string(&path) {
-            Ok(contents) => {
-                match serde_json::from_str(&contents) {
-                    Ok(config) => {
-                        log::info!("Loaded config from: {}", path.display());
-                        config
-                    }
-                    Err(e) => {
-                        log::warn!("Failed to parse config: {}", e);
-                        Self::default()
-                    }
+            Ok(contents) => match serde_json::from_str(&contents) {
+                Ok(config) => {
+                    log::info!("Loaded config from: {}", path.display());
+                    config
                 }
-            }
+                Err(e) => {
+                    log::warn!("Failed to parse config: {}", e);
+                    Self::default()
+                }
+            },
             Err(_) => {
                 log::info!("No config file found, using defaults");
                 Self::default()

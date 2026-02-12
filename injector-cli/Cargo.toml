@@ -2,6 +2,12 @@
 name = "injector-cli"
 version = "0.1.0"
 edition = "2021"
+authors = ["DLL Injector Contributors"]
+description = "Command-line tool for DLL injection with multiple injection methods"
+repository = "https://github.com/username/dllInjector"
+license = "MIT OR Apache-2.0"
+keywords = ["dll", "injection", "windows", "cli"]
+categories = ["os::windows-apis", "development-tools::debugging", "command-line-utilities"]
 
 [dependencies]
 injector-core = { path = "../injector-core" }

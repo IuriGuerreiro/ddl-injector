@@ -1,8 +1,8 @@
 //! CLI tool for DLL injection with multiple injection methods.
 
+use clap::Parser;
 use injector_core::*;
 use std::path::PathBuf;
-use clap::Parser;
 
 #[derive(Parser)]
 #[command(name = "injector-cli")]
@@ -17,7 +17,12 @@ struct Args {
     dll_path: PathBuf,
 
     /// Injection method to use
-    #[arg(short, long, value_name = "METHOD", default_value = "create-remote-thread")]
+    #[arg(
+        short,
+        long,
+        value_name = "METHOD",
+        default_value = "create-remote-thread"
+    )]
     method: InjectionMethodType,
 }
 
@@ -80,7 +85,11 @@ fn main() {
     if processes.len() > 1 {
         println!("⚠️  Found {} processes with that name:", processes.len());
         for (i, proc) in processes.iter().enumerate() {
-            let path_str = proc.path.as_ref().map(|p| p.display().to_string()).unwrap_or_else(|| "<unknown>".to_string());
+            let path_str = proc
+                .path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|| "<unknown>".to_string());
             println!("   {}. PID {} - {}", i + 1, proc.pid, path_str);
         }
         println!("   Using the first one (PID {})", processes[0].pid);

@@ -80,13 +80,13 @@ impl ImageDosHeader {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct ImageFileHeader {
-    pub machine: u16,              // Machine type
-    pub number_of_sections: u16,   // Number of sections
-    pub time_date_stamp: u32,      // Time date stamp
+    pub machine: u16,                 // Machine type
+    pub number_of_sections: u16,      // Number of sections
+    pub time_date_stamp: u32,         // Time date stamp
     pub pointer_to_symbol_table: u32, // Pointer to symbol table
-    pub number_of_symbols: u32,    // Number of symbols
+    pub number_of_symbols: u32,       // Number of symbols
     pub size_of_optional_header: u16, // Size of optional header
-    pub characteristics: u16,      // Characteristics
+    pub characteristics: u16,         // Characteristics
 }
 
 /// Data directory entry
@@ -202,7 +202,10 @@ impl fmt::Debug for ImageSectionHeader {
             .field("virtual_address", &self.virtual_address)
             .field("size_of_raw_data", &self.size_of_raw_data)
             .field("pointer_to_raw_data", &self.pointer_to_raw_data)
-            .field("characteristics", &format_args!("0x{:08X}", self.characteristics))
+            .field(
+                "characteristics",
+                &format_args!("0x{:08X}", self.characteristics),
+            )
             .finish()
     }
 }

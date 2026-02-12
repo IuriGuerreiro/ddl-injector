@@ -1,16 +1,16 @@
 //! PE import table resolution.
 
+use super::headers::*;
+use super::parser::PeFile;
+use crate::memory::write_memory;
+use crate::InjectionError;
 use std::mem;
+use windows::core::PCSTR;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::LibraryLoader::{
     GetModuleHandleA, GetProcAddress, LoadLibraryExA, LOAD_LIBRARY_AS_DATAFILE,
     LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
 };
-use windows::core::PCSTR;
-use crate::InjectionError;
-use crate::memory::write_memory;
-use super::parser::PeFile;
-use super::headers::*;
 
 /// Resolve all imports in the PE file and write function pointers to IAT.
 ///
@@ -110,11 +110,7 @@ pub unsafe fn resolve_imports(
 
         let iat_rva = descriptor.first_thunk;
 
-        log::debug!(
-            "  INT RVA: 0x{:08X}, IAT RVA: 0x{:08X}",
-            thunk_rva,
-            iat_rva
-        );
+        log::debug!("  INT RVA: 0x{:08X}, IAT RVA: 0x{:08X}", thunk_rva, iat_rva);
 
         // Process thunks
         let thunk_size = if pe.is_64bit { 8 } else { 4 };
@@ -166,15 +162,12 @@ pub unsafe fn resolve_imports(
                 let import_by_name_rva = thunk_value as u32;
 
                 // Read hint (2 bytes) - we don't use it but need to skip it
-                let name_offset = pe
-                    .rva_to_offset(import_by_name_rva)
-                    .ok_or_else(|| {
-                        InjectionError::InvalidPeFile(format!(
-                            "Invalid RVA for import name: 0x{:08X}",
-                            import_by_name_rva
-                        ))
-                    })?
-                    + 2; // Skip hint
+                let name_offset = pe.rva_to_offset(import_by_name_rva).ok_or_else(|| {
+                    InjectionError::InvalidPeFile(format!(
+                        "Invalid RVA for import name: 0x{:08X}",
+                        import_by_name_rva
+                    ))
+                })? + 2; // Skip hint
 
                 // Read function name
                 let name_bytes = &pe.data[name_offset..];
@@ -186,13 +179,14 @@ pub unsafe fn resolve_imports(
                 log::debug!("    Resolving import by name: {}", function_name);
 
                 unsafe {
-                    GetProcAddress(dll_handle, PCSTR::from_raw(name_bytes.as_ptr()))
-                        .ok_or_else(|| {
+                    GetProcAddress(dll_handle, PCSTR::from_raw(name_bytes.as_ptr())).ok_or_else(
+                        || {
                             InjectionError::ImportFunctionNotFound(
                                 function_name.to_string(),
                                 dll_name.clone(),
                             )
-                        })?
+                        },
+                    )?
                 }
             };
 
@@ -201,11 +195,7 @@ pub unsafe fn resolve_imports(
 
             // Write function address to IAT (usize ensures correct pointer width)
             let func_addr = function_address as usize;
-            write_memory(
-                process,
-                iat_address,
-                &func_addr.to_le_bytes(),
-            )?;
+            write_memory(process, iat_address, &func_addr.to_le_bytes())?;
 
             thunk_offset += thunk_size;
         }
@@ -239,8 +229,7 @@ mod tests {
             return;
         }
 
-        let pe = crate::pe::parser::PeFile::from_file(&dll_path)
-            .expect("Failed to parse test DLL");
+        let pe = crate::pe::parser::PeFile::from_file(&dll_path).expect("Failed to parse test DLL");
 
         let import_dir = pe.data_directory(IMAGE_DIRECTORY_ENTRY_IMPORT);
         assert!(import_dir.is_some());

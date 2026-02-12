@@ -1,8 +1,8 @@
 //! Reading data from remote process memory.
 
+use crate::InjectionError;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Diagnostics::Debug::ReadProcessMemory;
-use crate::InjectionError;
 
 /// Read data from a remote process's memory.
 ///
@@ -31,17 +31,13 @@ pub unsafe fn read_memory(
             buffer.len(),
             Some(&mut bytes_read),
         )
-        .map_err(|_| InjectionError::MemoryReadFailed(
-            std::io::Error::last_os_error()
-        ))?;
+        .map_err(|_| InjectionError::MemoryReadFailed(std::io::Error::last_os_error()))?;
     }
 
     if bytes_read != buffer.len() {
-        return Err(InjectionError::MemoryReadFailed(
-            std::io::Error::other(
-                "Incomplete read operation"
-            )
-        ));
+        return Err(InjectionError::MemoryReadFailed(std::io::Error::other(
+            "Incomplete read operation",
+        )));
     }
 
     Ok(())
@@ -77,10 +73,10 @@ pub unsafe fn read_struct<T: Copy>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use windows::Win32::System::Threading::GetCurrentProcess;
     use crate::memory::allocator::RemoteMemory;
     use crate::memory::writer::write_memory;
     use windows::Win32::System::Memory::PAGE_READWRITE;
+    use windows::Win32::System::Threading::GetCurrentProcess;
 
     #[test]
     fn test_read_memory_from_own_process() {
@@ -92,14 +88,17 @@ mod tests {
 
         // Write some test data
         let test_data = b"Hello, World!";
-        write_memory(process, mem.address(), test_data)
-            .expect("Failed to write memory");
+        write_memory(process, mem.address(), test_data).expect("Failed to write memory");
 
         // Read it back
         let mut buffer = vec![0u8; test_data.len()];
         unsafe {
-            read_memory(process, mem.address() as *const std::ffi::c_void, &mut buffer)
-                .expect("Failed to read memory");
+            read_memory(
+                process,
+                mem.address() as *const std::ffi::c_void,
+                &mut buffer,
+            )
+            .expect("Failed to read memory");
         }
 
         assert_eq!(&buffer[..], test_data);
@@ -113,12 +112,9 @@ mod tests {
             .expect("Failed to allocate memory");
 
         let test_data = b"Test data for read_memory_vec";
-        write_memory(process, mem.address(), test_data)
-            .expect("Failed to write memory");
+        write_memory(process, mem.address(), test_data).expect("Failed to write memory");
 
-        let result = unsafe {
-            read_memory_vec(process, mem.address(), test_data.len())
-        };
+        let result = unsafe { read_memory_vec(process, mem.address(), test_data.len()) };
 
         assert!(result.is_ok());
         assert_eq!(&result.unwrap()[..], test_data);
@@ -153,14 +149,11 @@ mod tests {
                 std::mem::size_of::<TestStruct>(),
             )
         };
-        write_memory(process, mem.address(), bytes)
-            .expect("Failed to write struct");
+        write_memory(process, mem.address(), bytes).expect("Failed to write struct");
 
         // Read struct back
-        let result: TestStruct = unsafe {
-            read_struct(process, mem.address())
-                .expect("Failed to read struct")
-        };
+        let result: TestStruct =
+            unsafe { read_struct(process, mem.address()).expect("Failed to read struct") };
 
         assert_eq!(result, test_value);
     }
@@ -175,12 +168,9 @@ mod tests {
                 .expect("Failed to allocate memory");
 
             let test_data: Vec<u8> = (0..size).map(|i| (i % 256) as u8).collect();
-            write_memory(process, mem.address(), &test_data)
-                .expect("Failed to write memory");
+            write_memory(process, mem.address(), &test_data).expect("Failed to write memory");
 
-            let result = unsafe {
-                read_memory_vec(process, mem.address(), size)
-            };
+            let result = unsafe { read_memory_vec(process, mem.address(), size) };
 
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), test_data);
@@ -193,9 +183,7 @@ mod tests {
 
         // Try to read from null pointer (should fail)
         let mut buffer = vec![0u8; 10];
-        let result = unsafe {
-            read_memory(process, std::ptr::null(), &mut buffer)
-        };
+        let result = unsafe { read_memory(process, std::ptr::null(), &mut buffer) };
 
         assert!(result.is_err());
     }
@@ -209,13 +197,10 @@ mod tests {
 
         // Test with u64
         let test_u64: u64 = 0x123456789ABCDEF0;
-        write_memory(process, mem.address(), &test_u64.to_le_bytes())
-            .expect("Failed to write u64");
+        write_memory(process, mem.address(), &test_u64.to_le_bytes()).expect("Failed to write u64");
 
-        let result: u64 = unsafe {
-            read_struct(process, mem.address())
-                .expect("Failed to read u64")
-        };
+        let result: u64 =
+            unsafe { read_struct(process, mem.address()).expect("Failed to read u64") };
 
         assert_eq!(result, test_u64);
     }

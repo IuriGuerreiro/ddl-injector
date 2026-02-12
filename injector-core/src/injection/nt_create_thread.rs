@@ -3,14 +3,16 @@
 //! Uses the undocumented NtCreateThreadEx function from ntdll.dll.
 //! Similar to CreateRemoteThread but uses native API and bypasses some hooks.
 
+use crate::injection::{
+    validate_architecture, validate_dll_path, InjectionMethod, InjectionResult,
+};
+use crate::memory::{write_wide_string, RemoteMemory};
+use crate::{InjectionError, ProcessHandle};
 use std::path::Path;
-use windows::Win32::System::Threading::*;
+use windows::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT};
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::System::Memory::PAGE_READWRITE;
-use windows::Win32::Foundation::{CloseHandle, HANDLE, WAIT_OBJECT_0, WAIT_TIMEOUT};
-use crate::injection::{InjectionMethod, InjectionResult, validate_dll_path, validate_architecture};
-use crate::memory::{RemoteMemory, write_wide_string};
-use crate::{ProcessHandle, InjectionError};
+use windows::Win32::System::Threading::*;
 
 /// NtCreateThreadEx function signature.
 type NtCreateThreadExFn = unsafe extern "system" fn(
@@ -47,7 +49,10 @@ impl NtCreateThreadExInjector {
             let func_addr = GetProcAddress(ntdll, s!("NtCreateThreadEx"))
                 .ok_or(InjectionError::NtCreateThreadExNotFound)?;
 
-            Ok(std::mem::transmute::<unsafe extern "system" fn() -> isize, NtCreateThreadExFn>(func_addr))
+            Ok(std::mem::transmute::<
+                unsafe extern "system" fn() -> isize,
+                NtCreateThreadExFn,
+            >(func_addr))
         }
     }
 
@@ -85,17 +90,9 @@ impl InjectionMethod for NtCreateThreadExInjector {
         let dll_path_str = dll_path.to_string_lossy();
         let required_size = (dll_path_str.len() + 1) * 2;
 
-        let remote_mem = RemoteMemory::allocate(
-            handle.as_handle(),
-            required_size,
-            PAGE_READWRITE,
-        )?;
+        let remote_mem = RemoteMemory::allocate(handle.as_handle(), required_size, PAGE_READWRITE)?;
 
-        write_wide_string(
-            handle.as_handle(),
-            remote_mem.address(),
-            &dll_path_str,
-        )?;
+        write_wide_string(handle.as_handle(), remote_mem.address(), &dll_path_str)?;
 
         // Create remote thread using NtCreateThreadEx
         let mut thread_handle = HANDLE::default();
@@ -118,9 +115,9 @@ impl InjectionMethod for NtCreateThreadExInjector {
 
         if status != 0 {
             log::error!("NtCreateThreadEx failed with status: 0x{:08X}", status);
-            return Err(InjectionError::CreateThreadFailed(
-                std::io::Error::other(format!("NtCreateThreadEx failed with status 0x{:08X}", status))
-            ));
+            return Err(InjectionError::CreateThreadFailed(std::io::Error::other(
+                format!("NtCreateThreadEx failed with status 0x{:08X}", status),
+            )));
         }
 
         log::info!("Remote thread created: {:?}", thread_handle);
@@ -137,7 +134,7 @@ impl InjectionMethod for NtCreateThreadExInjector {
                             log::error!("LoadLibraryW returned NULL");
                             let _ = CloseHandle(thread_handle);
                             return Err(InjectionError::Io(std::io::Error::other(
-                                "LoadLibraryW failed in remote thread"
+                                "LoadLibraryW failed in remote thread",
                             )));
                         }
                         log::info!("DLL loaded at: 0x{:X}", exit_code);
@@ -163,10 +160,7 @@ impl InjectionMethod for NtCreateThreadExInjector {
     }
 
     fn required_access(&self) -> PROCESS_ACCESS_RIGHTS {
-        PROCESS_CREATE_THREAD
-            | PROCESS_VM_OPERATION
-            | PROCESS_VM_WRITE
-            | PROCESS_QUERY_INFORMATION
+        PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION
     }
 }
 

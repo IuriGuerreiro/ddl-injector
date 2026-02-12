@@ -60,7 +60,10 @@ fn print_usage(program: &str) {
     eprintln!("  manual - Manual Map (no LoadLibrary, bypasses module list)");
     eprintln!();
     eprintln!("Example:");
-    eprintln!("  {} crt notepad.exe C:\\\\path\\\\to\\\\test_dll.dll", program);
+    eprintln!(
+        "  {} crt notepad.exe C:\\\\path\\\\to\\\\test_dll.dll",
+        program
+    );
 }
 
 fn inject(

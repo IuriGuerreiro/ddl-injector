@@ -4,6 +4,13 @@
 //! into the target process without using the Windows loader. The DLL bypasses
 //! the PEB module list, making it harder to detect.
 
+use super::InjectionMethod;
+use crate::memory::{write_memory, RemoteMemory};
+use crate::pe::{
+    map_sections, process_relocations, process_tls_callbacks, protect_sections,
+    register_exception_handlers, resolve_imports, PeFile,
+};
+use crate::{InjectionError, ProcessHandle};
 use std::path::Path;
 use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::System::Threading::{
@@ -11,13 +18,6 @@ use windows::Win32::System::Threading::{
     PROCESS_CREATE_THREAD, PROCESS_QUERY_INFORMATION, PROCESS_VM_OPERATION, PROCESS_VM_READ,
     PROCESS_VM_WRITE,
 };
-use crate::{InjectionError, ProcessHandle};
-use crate::memory::{RemoteMemory, write_memory};
-use crate::pe::{
-    PeFile, map_sections, protect_sections, resolve_imports, process_relocations,
-    process_tls_callbacks, register_exception_handlers,
-};
-use super::InjectionMethod;
 
 /// Manual DLL mapping injector.
 ///
@@ -64,27 +64,39 @@ impl InjectionMethod for ManualMapInjector {
 
         // Step 3: Map sections
         log::info!("Step 3: Mapping sections");
-        unsafe { map_sections(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            map_sections(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 4: Resolve imports
         log::info!("Step 4: Resolving imports");
-        unsafe { resolve_imports(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            resolve_imports(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 5: Process relocations
         log::info!("Step 5: Processing relocations");
-        unsafe { process_relocations(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            process_relocations(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 6: Process TLS callbacks
         log::info!("Step 6: Processing TLS callbacks");
-        unsafe { process_tls_callbacks(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            process_tls_callbacks(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 7: Register exception handlers (x64 only)
         log::info!("Step 7: Registering exception handlers");
-        unsafe { register_exception_handlers(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            register_exception_handlers(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 8: Protect sections
         log::info!("Step 8: Setting memory protection");
-        unsafe { protect_sections(process.as_handle(), &pe, base_address)?; }
+        unsafe {
+            protect_sections(process.as_handle(), &pe, base_address)?;
+        }
 
         // Step 9: Execute DllMain
         log::info!("Step 9: Executing DllMain");
@@ -108,10 +120,8 @@ impl InjectionMethod for ManualMapInjector {
         log::debug!("Shellcode size: {} bytes", shellcode.len());
 
         // Allocate memory for shellcode
-        let shellcode_mem = RemoteMemory::allocate_executable(
-            process.as_handle(),
-            shellcode.len(),
-        )?;
+        let shellcode_mem =
+            RemoteMemory::allocate_executable(process.as_handle(), shellcode.len())?;
 
         log::debug!("Shellcode allocated at: 0x{:p}", shellcode_mem.address());
 
@@ -126,7 +136,10 @@ impl InjectionMethod for ManualMapInjector {
                 process.as_handle(),
                 None,
                 0,
-                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
+                Some(std::mem::transmute::<
+                    *mut u8,
+                    unsafe extern "system" fn(*mut std::ffi::c_void) -> u32,
+                >(shellcode_mem.address())),
                 None,
                 0,
                 None,

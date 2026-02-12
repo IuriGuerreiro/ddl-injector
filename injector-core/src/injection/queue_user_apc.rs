@@ -13,14 +13,16 @@
 //! - May take time to execute (threads must enter alertable state)
 //! - Not guaranteed to execute immediately
 
+use crate::injection::{
+    validate_architecture, validate_dll_path, InjectionMethod, InjectionResult,
+};
+use crate::memory::{write_wide_string, RemoteMemory};
+use crate::process::{ThreadEnumerator, ThreadHandle};
+use crate::{InjectionError, ProcessError, ProcessHandle};
 use std::path::Path;
-use windows::Win32::System::Threading::*;
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::System::Memory::PAGE_READWRITE;
-use crate::injection::{InjectionMethod, InjectionResult, validate_dll_path, validate_architecture};
-use crate::memory::{RemoteMemory, write_wide_string};
-use crate::process::{ThreadEnumerator, ThreadHandle};
-use crate::{ProcessHandle, InjectionError, ProcessError};
+use windows::Win32::System::Threading::*;
 
 /// QueueUserAPC injector.
 #[derive(Debug, Default)]
@@ -54,14 +56,17 @@ impl QueueUserApcInjector {
     ) -> Result<(), ProcessError> {
         unsafe {
             let result = QueueUserAPC(
-                Some(std::mem::transmute::<*mut std::ffi::c_void, unsafe extern "system" fn(usize)>(loadlib_addr)),
+                Some(std::mem::transmute::<
+                    *mut std::ffi::c_void,
+                    unsafe extern "system" fn(usize),
+                >(loadlib_addr)),
                 thread_handle.as_handle(),
                 dll_path_addr as usize,
             );
 
             if result == 0 {
                 return Err(ProcessError::OpenThreadFailed(
-                    std::io::Error::last_os_error()
+                    std::io::Error::last_os_error(),
                 ));
             }
         }
@@ -85,30 +90,20 @@ impl InjectionMethod for QueueUserApcInjector {
         let dll_path_str = dll_path.to_string_lossy();
         let required_size = (dll_path_str.len() + 1) * 2;
 
-        let remote_mem = RemoteMemory::allocate(
-            handle.as_handle(),
-            required_size,
-            PAGE_READWRITE,
-        )?;
+        let remote_mem = RemoteMemory::allocate(handle.as_handle(), required_size, PAGE_READWRITE)?;
 
-        write_wide_string(
-            handle.as_handle(),
-            remote_mem.address(),
-            &dll_path_str,
-        )?;
+        write_wide_string(handle.as_handle(), remote_mem.address(), &dll_path_str)?;
 
         log::debug!("DLL path written to: {:?}", remote_mem.address());
 
         // Enumerate threads
-        let process_id = unsafe {
-            GetProcessId(handle.as_handle())
-        };
+        let process_id = unsafe { GetProcessId(handle.as_handle()) };
 
         let threads = ThreadEnumerator::enumerate(process_id)?;
 
         if threads.is_empty() {
             return Err(InjectionError::ProcessError(
-                ProcessError::NoAlertableThreads
+                ProcessError::NoAlertableThreads,
             ));
         }
 
@@ -118,16 +113,11 @@ impl InjectionMethod for QueueUserApcInjector {
 
         // Queue APC to all threads
         for thread_info in &threads {
-            match ThreadHandle::open(
-                thread_info.thread_id,
-                THREAD_SET_CONTEXT,
-            ) {
+            match ThreadHandle::open(thread_info.thread_id, THREAD_SET_CONTEXT) {
                 Ok(thread_handle) => {
-                    if Self::queue_apc_to_thread(
-                        &thread_handle,
-                        loadlib_addr,
-                        remote_mem.address(),
-                    ).is_ok() {
+                    if Self::queue_apc_to_thread(&thread_handle, loadlib_addr, remote_mem.address())
+                        .is_ok()
+                    {
                         queued_count += 1;
                         log::debug!("APC queued to thread {}", thread_info.thread_id);
                     }
@@ -140,7 +130,7 @@ impl InjectionMethod for QueueUserApcInjector {
 
         if queued_count == 0 {
             return Err(InjectionError::ProcessError(
-                ProcessError::NoAlertableThreads
+                ProcessError::NoAlertableThreads,
             ));
         }
 

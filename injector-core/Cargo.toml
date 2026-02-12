@@ -2,6 +2,13 @@
 name = "injector-core"
 version = "0.1.0"
 edition = "2021"
+authors = ["DLL Injector Contributors"]
+description = "Multi-method DLL injection library for Windows with CreateRemoteThread, QueueUserAPC, NtCreateThreadEx, and Manual Map support"
+repository = "https://github.com/username/dllInjector"
+license = "MIT OR Apache-2.0"
+keywords = ["dll", "injection", "windows", "security", "debugging"]
+categories = ["os::windows-apis", "development-tools::debugging"]
+readme = "../README.md"
 
 [dependencies]
 windows = { version = "0.58", features = [

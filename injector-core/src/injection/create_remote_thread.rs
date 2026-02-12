@@ -16,14 +16,16 @@
 //! - DLL appears in module list
 //! - Calls DllMain which may trigger detection
 
+use crate::injection::{
+    validate_architecture, validate_dll_path, InjectionMethod, InjectionResult,
+};
+use crate::memory::{write_wide_string, RemoteMemory};
+use crate::{InjectionError, ProcessHandle};
 use std::path::Path;
-use windows::Win32::System::Threading::*;
+use windows::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
 use windows::Win32::System::LibraryLoader::*;
 use windows::Win32::System::Memory::PAGE_READWRITE;
-use windows::Win32::Foundation::{WAIT_OBJECT_0, WAIT_TIMEOUT};
-use crate::injection::{InjectionMethod, InjectionResult, validate_dll_path, validate_architecture};
-use crate::memory::{RemoteMemory, write_wide_string};
-use crate::{ProcessHandle, InjectionError};
+use windows::Win32::System::Threading::*;
 
 /// CreateRemoteThread injection method.
 #[derive(Debug, Default)]
@@ -72,11 +74,7 @@ impl InjectionMethod for CreateRemoteThreadInjector {
         let dll_path_str = dll_path.to_string_lossy();
         let required_size = (dll_path_str.len() + 1) * 2; // UTF-16 + null terminator
 
-        let remote_mem = RemoteMemory::allocate(
-            handle.as_handle(),
-            required_size,
-            PAGE_READWRITE,
-        )?;
+        let remote_mem = RemoteMemory::allocate(handle.as_handle(), required_size, PAGE_READWRITE)?;
 
         log::debug!(
             "Allocated {} bytes at {:?}",
@@ -85,11 +83,7 @@ impl InjectionMethod for CreateRemoteThreadInjector {
         );
 
         // Step 5: Write DLL path to remote memory
-        write_wide_string(
-            handle.as_handle(),
-            remote_mem.address(),
-            &dll_path_str,
-        )?;
+        write_wide_string(handle.as_handle(), remote_mem.address(), &dll_path_str)?;
 
         log::debug!("Wrote DLL path to remote memory");
 
@@ -99,14 +93,15 @@ impl InjectionMethod for CreateRemoteThreadInjector {
                 handle.as_handle(),
                 None,
                 0,
-                Some(std::mem::transmute::<*mut std::ffi::c_void, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(loadlib_addr)),
+                Some(std::mem::transmute::<
+                    *mut std::ffi::c_void,
+                    unsafe extern "system" fn(*mut std::ffi::c_void) -> u32,
+                >(loadlib_addr)),
                 Some(remote_mem.as_ptr()),
                 0,
                 None,
             )
-            .map_err(|_| InjectionError::CreateThreadFailed(
-                std::io::Error::last_os_error()
-            ))?
+            .map_err(|_| InjectionError::CreateThreadFailed(std::io::Error::last_os_error()))?
         };
 
         log::info!("Remote thread created: {:?}", thread_handle);
@@ -125,7 +120,7 @@ impl InjectionMethod for CreateRemoteThreadInjector {
                         if exit_code == 0 {
                             log::error!("LoadLibraryW returned NULL - DLL failed to load");
                             return Err(InjectionError::Io(std::io::Error::other(
-                                "LoadLibraryW failed in target process"
+                                "LoadLibraryW failed in target process",
                             )));
                         }
                         log::info!("DLL loaded at address: 0x{:X}", exit_code);
@@ -152,10 +147,7 @@ impl InjectionMethod for CreateRemoteThreadInjector {
     }
 
     fn required_access(&self) -> PROCESS_ACCESS_RIGHTS {
-        PROCESS_CREATE_THREAD
-            | PROCESS_VM_OPERATION
-            | PROCESS_VM_WRITE
-            | PROCESS_QUERY_INFORMATION
+        PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION
     }
 }
 

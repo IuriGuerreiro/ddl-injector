@@ -1,9 +1,9 @@
 //! Injection control panel UI component.
 
+use crate::app::InjectionMethodType;
 use eframe::egui;
 use injector_core::ProcessInfo;
 use std::path::PathBuf;
-use crate::app::InjectionMethodType;
 
 /// Actions that can be triggered from the injection panel
 #[derive(Debug, Clone, PartialEq)]
@@ -146,11 +146,7 @@ pub fn render(
             .selected_text(injection_method.name())
             .show_ui(ui, |ui| {
                 for method in InjectionMethodType::all() {
-                    ui.selectable_value(
-                        injection_method,
-                        *method,
-                        method.name(),
-                    );
+                    ui.selectable_value(injection_method, *method, method.name());
                 }
             });
 
@@ -160,7 +156,10 @@ pub fn render(
         match injection_method {
             InjectionMethodType::ManualMap => {
                 ui.add_space(5.0);
-                ui.colored_label(egui::Color32::from_rgb(100, 200, 255), "🔒 Stealth Features:");
+                ui.colored_label(
+                    egui::Color32::from_rgb(100, 200, 255),
+                    "🔒 Stealth Features:",
+                );
                 ui.small("• Bypasses PEB module list");
                 ui.small("• Not visible in most module enumerators");
             }
@@ -204,8 +203,12 @@ pub fn render(
             ui.add_space(5.0);
         }
 
-        let button = egui::Button::new(if injecting { "Injecting..." } else { "💉 Inject" })
-            .min_size(egui::vec2(200.0, 40.0));
+        let button = egui::Button::new(if injecting {
+            "Injecting..."
+        } else {
+            "💉 Inject"
+        })
+        .min_size(egui::vec2(200.0, 40.0));
 
         if ui.add_enabled(can_inject, button).clicked() {
             action = InjectionPanelAction::PerformInjection;
@@ -234,7 +237,7 @@ pub fn render(
         ui.add_space(5.0);
         ui.colored_label(
             egui::Color32::YELLOW,
-            "⚠ Administrator privileges may be required"
+            "⚠ Administrator privileges may be required",
         );
     });
 

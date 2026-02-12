@@ -7,9 +7,9 @@ use windows::Win32::Foundation::{BOOL, HINSTANCE};
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 #[cfg(not(feature = "silent"))]
-use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_OK, MB_ICONINFORMATION};
-#[cfg(not(feature = "silent"))]
 use windows::core::w;
+#[cfg(not(feature = "silent"))]
+use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_ICONINFORMATION, MB_OK};
 
 /// Counter to track how many times this DLL has been loaded
 static LOAD_COUNT: AtomicU32 = AtomicU32::new(0);

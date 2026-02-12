@@ -159,7 +159,10 @@ mod tests {
         assert_eq!(error.to_string(), "DLL path must be absolute");
 
         let error = InjectionError::InvalidPeSignature;
-        assert_eq!(error.to_string(), "Invalid PE signature: expected 'PE\\0\\0'");
+        assert_eq!(
+            error.to_string(),
+            "Invalid PE signature: expected 'PE\\0\\0'"
+        );
     }
 
     #[test]

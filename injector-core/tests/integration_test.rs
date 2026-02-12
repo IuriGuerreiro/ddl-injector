@@ -13,7 +13,7 @@
 
 use injector_core::*;
 use std::path::PathBuf;
-use std::process::{Command, Child};
+use std::process::{Child, Command};
 use std::time::Duration;
 
 // ===========================================================================
@@ -85,7 +85,10 @@ fn test_create_remote_thread_injection() {
 
     let dll_path = test_dll_path();
     if !dll_path.exists() {
-        panic!("Test DLL not found at {:?}. Run: cargo build -p test-dll --release --features silent", dll_path);
+        panic!(
+            "Test DLL not found at {:?}. Run: cargo build -p test-dll --release --features silent",
+            dll_path
+        );
     }
 
     // Spawn target process
@@ -113,7 +116,10 @@ fn test_create_remote_thread_injection() {
     assert!(result.is_ok(), "Injection failed: {:?}", result.err());
 
     // Check marker file
-    assert!(check_marker_file(), "Marker file not created - DLL did not execute!");
+    assert!(
+        check_marker_file(),
+        "Marker file not created - DLL did not execute!"
+    );
 
     // Verify marker file contents
     if let Some(contents) = read_marker_file() {
@@ -156,8 +162,15 @@ fn test_manual_map_injection() {
     if let Err(e) = &result {
         println!("Injection error: {:?}", e);
     }
-    assert!(result.is_ok(), "Manual Map injection failed: {:?}", result.err());
-    assert!(check_marker_file(), "Marker file not created - DLL did not execute!");
+    assert!(
+        result.is_ok(),
+        "Manual Map injection failed: {:?}",
+        result.err()
+    );
+    assert!(
+        check_marker_file(),
+        "Marker file not created - DLL did not execute!"
+    );
 
     let _ = child.kill();
     clear_marker_file();
@@ -193,7 +206,11 @@ fn test_queue_user_apc_injection() {
     if let Err(e) = &result {
         println!("Injection error: {:?}", e);
     }
-    assert!(result.is_ok(), "QueueUserAPC injection failed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "QueueUserAPC injection failed: {:?}",
+        result.err()
+    );
 
     // Note: QueueUserAPC may not execute immediately if no alertable threads
     println!("QueueUserAPC injection queued successfully");
@@ -232,8 +249,15 @@ fn test_nt_create_thread_injection() {
     if let Err(e) = &result {
         println!("Injection error: {:?}", e);
     }
-    assert!(result.is_ok(), "NtCreateThreadEx injection failed: {:?}", result.err());
-    assert!(check_marker_file(), "Marker file not created - DLL did not execute!");
+    assert!(
+        result.is_ok(),
+        "NtCreateThreadEx injection failed: {:?}",
+        result.err()
+    );
+    assert!(
+        check_marker_file(),
+        "Marker file not created - DLL did not execute!"
+    );
 
     let _ = child.kill();
     clear_marker_file();
@@ -251,8 +275,8 @@ fn test_injection_with_missing_dll() {
     let (mut child, pid) = spawn_test_process();
 
     let injector = CreateRemoteThreadInjector::new();
-    let handle = ProcessHandle::open(pid, injector.required_access())
-        .expect("Failed to open process");
+    let handle =
+        ProcessHandle::open(pid, injector.required_access()).expect("Failed to open process");
 
     let missing_dll = PathBuf::from("C:\\nonexistent\\missing.dll");
     let result = injector.inject(&handle, &missing_dll);
@@ -274,12 +298,18 @@ fn test_injection_architecture_validation() {
 
     let (mut child, pid) = spawn_test_process();
 
-    let handle = ProcessHandle::open(pid, windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION)
-        .expect("Failed to open process");
+    let handle = ProcessHandle::open(
+        pid,
+        windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION,
+    )
+    .expect("Failed to open process");
 
     // Architecture validation against same architecture should pass
     let result = injection::validate_architecture(&handle);
-    assert!(result.is_ok(), "Architecture validation should pass for same architecture");
+    assert!(
+        result.is_ok(),
+        "Architecture validation should pass for same architecture"
+    );
 
     let _ = child.kill();
 
@@ -413,7 +443,10 @@ fn test_administrator_detection() {
     println!("Running as administrator: {}", is_admin);
 
     // This test should be run with admin privileges
-    assert!(is_admin, "Test should be run as administrator when using --ignored flag");
+    assert!(
+        is_admin,
+        "Test should be run as administrator when using --ignored flag"
+    );
 
     println!("Administrator detection test passed!");
 }
@@ -431,7 +464,10 @@ fn test_debug_privilege_enable() {
     }
 
     // Should succeed when running as admin
-    assert!(result.is_ok(), "Failed to enable debug privilege - are you running as admin?");
+    assert!(
+        result.is_ok(),
+        "Failed to enable debug privilege - are you running as admin?"
+    );
 
     println!("Debug privilege enable test passed!");
 }
