@@ -13,6 +13,7 @@ Welcome to the DLL Injector documentation. This directory contains comprehensive
 - **[Injection Methods](injection-methods.md)** - Detailed explanation of each injection technique
 - **[API Reference](api-reference.md)** - Public API documentation for `injector-core`
 - **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+- **[Project Review](project-review.md)** - Non-UI review of improvements and constraints
 
 ### Implementation Phases
 
