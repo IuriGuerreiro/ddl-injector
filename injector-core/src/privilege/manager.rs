@@ -1,7 +1,6 @@
 // Windows privilege management implementation
 
 use crate::error::PrivilegeError;
-use windows::core::PWSTR;
 use windows::Win32::Foundation::{CloseHandle, GetLastError, HANDLE, LUID, WIN32_ERROR};
 use windows::Win32::Security::{
     AdjustTokenPrivileges, CheckTokenMembership, CreateWellKnownSid, GetTokenInformation,
@@ -38,9 +37,16 @@ impl PrivilegeManager {
     /// ```
     pub fn is_administrator() -> Result<bool, PrivilegeError> {
         unsafe {
-            // Create well-known SID for Administrators group
-            let mut sid_buffer = vec![0u8; 256];
-            let mut sid_size = sid_buffer.len() as u32;
+            // Get required size for SID
+            let mut sid_size = 0u32;
+            let _ = CreateWellKnownSid(
+                WinBuiltinAdministratorsSid,
+                None,
+                PSID(std::ptr::null_mut()),
+                &mut sid_size,
+            );
+
+            let mut sid_buffer = vec![0u8; sid_size as usize];
 
             CreateWellKnownSid(
                 WinBuiltinAdministratorsSid,
@@ -50,7 +56,7 @@ impl PrivilegeManager {
             )
             .map_err(|e| {
                 log::error!("Failed to create well-known SID: {}", e);
-                PrivilegeError::OpenTokenFailed(std::io::Error::last_os_error())
+                PrivilegeError::SidCreationFailed(std::io::Error::last_os_error())
             })?;
 
             // Check if current token is a member of Administrators group
@@ -58,7 +64,7 @@ impl PrivilegeManager {
             CheckTokenMembership(None, PSID(sid_buffer.as_ptr() as *mut _), &mut is_member).map_err(
                 |e| {
                     log::error!("Failed to check token membership: {}", e);
-                    PrivilegeError::OpenTokenFailed(std::io::Error::last_os_error())
+                    PrivilegeError::MembershipCheckFailed(std::io::Error::last_os_error())
                 },
             )?;
 
@@ -112,9 +118,7 @@ impl PrivilegeManager {
 
             // Lookup the LUID for SeDebugPrivilege
             let mut luid = LUID::default();
-            let privilege_name = "SeDebugPrivilege\0".encode_utf16().collect::<Vec<_>>();
-
-            LookupPrivilegeValueW(None, PWSTR(privilege_name.as_ptr() as *mut _), &mut luid)
+            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid)
                 .map_err(|e| {
                     log::error!("Failed to lookup privilege value: {}", e);
                     PrivilegeError::LookupPrivilegeFailed(std::io::Error::last_os_error())
@@ -147,18 +151,19 @@ impl PrivilegeManager {
             // This indicates the privilege is not held even if AdjustTokenPrivileges succeeded
             let last_error = GetLastError();
             if last_error.0 != 0 {
+                if last_error == WIN32_ERROR(1300) {
+                    // ERROR_NOT_ALL_ASSIGNED
+                    log::error!("SeDebugPrivilege not granted - not running as administrator?");
+                    return Err(PrivilegeError::PrivilegeNotHeld(
+                        "SeDebugPrivilege".to_string(),
+                    ));
+                }
+
                 log::error!(
                     "AdjustTokenPrivileges returned error: {} ({})",
                     last_error.0,
                     last_error.to_hresult()
                 );
-
-                if last_error == WIN32_ERROR(1300) {
-                    // ERROR_NOT_ALL_ASSIGNED
-                    return Err(PrivilegeError::PrivilegeNotHeld(
-                        "SeDebugPrivilege".to_string(),
-                    ));
-                }
 
                 return Err(PrivilegeError::AdjustPrivilegeFailed(
                     std::io::Error::from_raw_os_error(last_error.0 as i32),
@@ -202,17 +207,23 @@ impl PrivilegeManager {
 
             // Lookup the LUID for SeDebugPrivilege
             let mut luid = LUID::default();
-            let privilege_name = "SeDebugPrivilege\0".encode_utf16().collect::<Vec<_>>();
-
-            LookupPrivilegeValueW(None, PWSTR(privilege_name.as_ptr() as *mut _), &mut luid)
+            LookupPrivilegeValueW(None, windows::core::w!("SeDebugPrivilege"), &mut luid)
                 .map_err(|e| {
                     log::error!("Failed to lookup privilege value: {}", e);
                     PrivilegeError::LookupPrivilegeFailed(std::io::Error::last_os_error())
                 })?;
 
-            // Get token privileges
-            let mut buffer = vec![0u8; 1024];
+            // Get token privileges size
             let mut return_length = 0u32;
+            let _ = GetTokenInformation(
+                token,
+                TokenPrivileges,
+                None,
+                0,
+                &mut return_length,
+            );
+
+            let mut buffer = vec![0u8; return_length as usize];
 
             GetTokenInformation(
                 token,

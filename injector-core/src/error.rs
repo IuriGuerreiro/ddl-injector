@@ -76,6 +76,12 @@ pub enum PrivilegeError {
     #[error("Failed to adjust token privileges")]
     AdjustPrivilegeFailed(#[source] std::io::Error),
 
+    #[error("Failed to create well-known SID")]
+    SidCreationFailed(#[source] std::io::Error),
+
+    #[error("Failed to check token membership")]
+    MembershipCheckFailed(#[source] std::io::Error),
+
     #[error("Privilege not held: {0}")]
     PrivilegeNotHeld(String),
 
