@@ -140,7 +140,7 @@ If you discover vulnerabilities using this tool:
 
 ### License
 
-This software is licensed under MIT OR Apache-2.0. See LICENSE files for details.
+This software is licensed under the MIT License. See LICENSE-MIT for details.
 
 ### Disclaimer of Warranty
 

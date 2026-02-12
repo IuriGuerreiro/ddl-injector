@@ -265,7 +265,7 @@ Fixes #123
 **By Contributing:**
 You certify that:
 1. Your contribution is your original work or you have rights to contribute it
-2. You agree to license it under MIT OR Apache-2.0
+2. You agree to license it under MIT
 3. You understand and agree to the legal disclaimer
 4. Your contribution is for educational/authorized purposes only
 

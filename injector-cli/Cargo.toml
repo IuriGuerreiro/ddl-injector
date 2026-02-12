@@ -5,7 +5,7 @@ edition = "2021"
 authors = ["DLL Injector Contributors"]
 description = "Command-line tool for DLL injection with multiple injection methods"
 repository = "https://github.com/username/dllInjector"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 keywords = ["dll", "injection", "windows", "cli"]
 categories = ["os::windows-apis", "development-tools::debugging", "command-line-utilities"]
 
