@@ -2,7 +2,10 @@
 
 use std::mem;
 use windows::Win32::Foundation::HANDLE;
-use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress, LoadLibraryA};
+use windows::Win32::System::LibraryLoader::{
+    GetModuleHandleA, GetProcAddress, LoadLibraryExA, LOAD_LIBRARY_AS_DATAFILE,
+    LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+};
 use windows::core::PCSTR;
 use crate::InjectionError;
 use crate::memory::write_memory;
@@ -63,24 +66,29 @@ pub fn resolve_imports(
             .map_err(|_| InjectionError::ImportModuleNotFound(dll_name.clone()))?;
 
         // Load the DLL in our process to get function addresses
-        // Try GetModuleHandleA first, if it fails, use LoadLibraryA
+        // Try GetModuleHandleA first, if it fails, use LoadLibraryExA
         let dll_handle = unsafe {
             match GetModuleHandleA(PCSTR::from_raw(dll_name_cstr.as_ptr() as *const u8)) {
                 Ok(handle) => {
                     log::debug!("  DLL already loaded: {}", dll_name);
                     handle
                 }
-                Err(e) => {
-                    log::debug!("  DLL not loaded ({}), attempting to load: {}", e, dll_name);
-                    match LoadLibraryA(PCSTR::from_raw(dll_name_cstr.as_ptr() as *const u8)) {
+                Err(_) => {
+                    // Use LoadLibraryExA with LOAD_LIBRARY_AS_DATAFILE to map the DLL without executing its code.
+                    // Also use LOAD_LIBRARY_SEARCH_DEFAULT_DIRS to find system DLLs and local dependencies.
+                    match LoadLibraryExA(
+                        PCSTR::from_raw(dll_name_cstr.as_ptr() as *const u8),
+                        None,
+                        LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+                    ) {
                         Ok(handle) => {
-                            log::debug!("  Successfully loaded DLL: {}", dll_name);
+                            log::debug!("  Successfully mapped DLL as datafile: {}", dll_name);
                             handle
                         }
                         Err(e) => {
                             log::error!("  Failed to load DLL '{}': {}", dll_name, e);
                             return Err(InjectionError::ImportModuleNotFound(format!(
-                                "{} (LoadLibrary failed: {})",
+                                "{} (LoadLibraryExA failed: {})",
                                 dll_name, e
                             )));
                         }
