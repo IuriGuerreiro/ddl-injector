@@ -11,7 +11,10 @@ use super::headers::*;
 /// Process TLS callbacks before DllMain.
 ///
 /// TLS callbacks are executed before DllMain and are used for thread-local storage initialization.
-pub fn process_tls_callbacks(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn process_tls_callbacks(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,
@@ -121,7 +124,7 @@ fn process_tls_callbacks_64(
                 process,
                 None,
                 0,
-                Some(std::mem::transmute(shellcode_mem.address())),
+                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
                 None,
                 0,
                 None,
@@ -215,7 +218,7 @@ fn process_tls_callbacks_32(
                 process,
                 None,
                 0,
-                Some(std::mem::transmute(shellcode_mem.address())),
+                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
                 None,
                 0,
                 None,

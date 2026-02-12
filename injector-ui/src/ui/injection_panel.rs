@@ -14,6 +14,7 @@ pub enum InjectionPanelAction {
     SelectRecentDll(PathBuf),
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn render(
     ui: &mut egui::Ui,
     processes: &[ProcessInfo],

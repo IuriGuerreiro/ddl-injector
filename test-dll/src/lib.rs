@@ -2,7 +2,7 @@
 //! Shows a message box when loaded.
 
 use windows::Win32::Foundation::{BOOL, HINSTANCE};
-use windows::Win32::System::SystemServices::{DLL_PROCESS_ATTACH, DLL_PROCESS_DETACH};
+use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 use windows::Win32::UI::WindowsAndMessaging::{MessageBoxW, MB_OK, MB_ICONINFORMATION};
 use windows::core::w;
 

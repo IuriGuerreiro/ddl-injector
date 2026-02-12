@@ -124,8 +124,7 @@ impl InjectionMethod for CreateRemoteThreadInjector {
                     if GetExitCodeThread(thread_handle, &mut exit_code).is_ok() {
                         if exit_code == 0 {
                             log::error!("LoadLibraryW returned NULL - DLL failed to load");
-                            return Err(InjectionError::Io(std::io::Error::new(
-                                std::io::ErrorKind::Other,
+                            return Err(InjectionError::Io(std::io::Error::other(
                                 "LoadLibraryW failed in target process"
                             )));
                         }

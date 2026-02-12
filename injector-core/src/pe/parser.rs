@@ -30,7 +30,7 @@ impl PeFile {
         log::debug!("Loading PE file from: {}", path.as_ref().display());
 
         let data = fs::read(path.as_ref())
-            .map_err(|e| InjectionError::PeReadError(e))?;
+            .map_err(InjectionError::PeReadError)?;
 
         Self::from_bytes(data)
     }

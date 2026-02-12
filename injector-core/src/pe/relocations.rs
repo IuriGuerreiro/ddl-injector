@@ -11,7 +11,10 @@ use super::headers::*;
 ///
 /// This adjusts all addresses in the PE file to account for the difference
 /// between the preferred base address and the actual load address.
-pub fn process_relocations(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn process_relocations(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,

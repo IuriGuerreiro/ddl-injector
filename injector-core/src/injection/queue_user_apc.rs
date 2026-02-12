@@ -54,7 +54,7 @@ impl QueueUserApcInjector {
     ) -> Result<(), ProcessError> {
         unsafe {
             let result = QueueUserAPC(
-                Some(std::mem::transmute(loadlib_addr)),
+                Some(std::mem::transmute::<*mut std::ffi::c_void, unsafe extern "system" fn(usize)>(loadlib_addr)),
                 thread_handle.as_handle(),
                 dll_path_addr as usize,
             );

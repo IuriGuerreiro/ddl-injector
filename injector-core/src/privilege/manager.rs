@@ -125,7 +125,7 @@ impl PrivilegeManager {
                 })?;
 
             // Set up the privilege structure
-            let mut tp = TOKEN_PRIVILEGES {
+            let tp = TOKEN_PRIVILEGES {
                 PrivilegeCount: 1,
                 Privileges: [LUID_AND_ATTRIBUTES {
                     Luid: luid,
@@ -137,7 +137,7 @@ impl PrivilegeManager {
             AdjustTokenPrivileges(
                 token,
                 false,
-                Some(&mut tp),
+                Some(&tp),
                 0,
                 None,
                 None,

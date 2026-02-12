@@ -14,7 +14,10 @@ use super::headers::{IMAGE_SCN_MEM_EXECUTE, IMAGE_SCN_MEM_READ, IMAGE_SCN_MEM_WR
 ///
 /// This copies the PE headers and all section data to the allocated memory region
 /// in the target process. Sections are mapped to their RVA offsets.
-pub fn map_sections(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn map_sections(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,
@@ -85,7 +88,10 @@ pub fn map_sections(
 ///
 /// This applies the correct memory protection (R/W/X) to each section based on
 /// the PE section characteristics flags.
-pub fn protect_sections(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn protect_sections(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,
@@ -119,9 +125,8 @@ pub fn protect_sections(
                 &mut old_protection,
             )
             .map_err(|_| {
-                InjectionError::MemoryAllocationFailed(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to protect section '{}'", section_name),
+                InjectionError::MemoryAllocationFailed(std::io::Error::other(
+                    format!("Failed to protect section '{}'", section_name)
                 ))
             })?;
         }

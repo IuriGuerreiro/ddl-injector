@@ -3,7 +3,6 @@
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Threading::{CreateRemoteThread, WaitForSingleObject, GetExitCodeThread, INFINITE};
 use windows::Win32::System::LibraryLoader::{GetModuleHandleA, GetProcAddress};
-use windows::core::PCSTR;
 use crate::InjectionError;
 use crate::memory::{write_memory, RemoteMemory};
 use super::parser::PeFile;
@@ -12,7 +11,10 @@ use super::headers::*;
 /// Register exception handlers for x64 DLLs.
 ///
 /// Calls RtlAddFunctionTable in the target process to register exception handlers.
-pub fn register_exception_handlers(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn register_exception_handlers(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,
@@ -41,14 +43,14 @@ pub fn register_exception_handlers(
 
     // Get RtlAddFunctionTable address from ntdll.dll
     let ntdll = unsafe {
-        GetModuleHandleA(PCSTR::from_raw(b"ntdll.dll\0".as_ptr()))
+        GetModuleHandleA(windows::core::s!("ntdll.dll"))
             .map_err(|_| {
                 InjectionError::InvalidPeFile("Failed to get ntdll.dll handle".to_string())
             })?
     };
 
     let rtl_add_function_table = unsafe {
-        GetProcAddress(ntdll, PCSTR::from_raw(b"RtlAddFunctionTable\0".as_ptr()))
+        GetProcAddress(ntdll, windows::core::s!("RtlAddFunctionTable"))
             .ok_or_else(|| {
                 InjectionError::InvalidPeFile(
                     "Failed to find RtlAddFunctionTable in ntdll.dll".to_string(),
@@ -78,7 +80,7 @@ pub fn register_exception_handlers(
     //     DWORD64 BaseAddress
     // )
     let shellcode = create_rtl_add_function_table_shellcode(
-        rtl_add_function_table as u64,
+        rtl_add_function_table as usize,
         exception_table_addr as u64,
         exception_count,
         base_address as u64,
@@ -98,7 +100,7 @@ pub fn register_exception_handlers(
             process,
             None,
             0,
-            Some(std::mem::transmute(shellcode_mem.address())),
+            Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
             None,
             0,
             None,
@@ -139,7 +141,7 @@ pub fn register_exception_handlers(
 ///     DWORD64 BaseAddress               // r8
 /// )
 fn create_rtl_add_function_table_shellcode(
-    rtl_add_function_table_addr: u64,
+    rtl_add_function_table_addr: usize,
     function_table_addr: u64,
     entry_count: u32,
     base_address: u64,
@@ -163,7 +165,7 @@ fn create_rtl_add_function_table_shellcode(
 
     // mov rax, rtl_add_function_table_addr
     shellcode.extend_from_slice(&[0x48, 0xB8]);
-    shellcode.extend_from_slice(&rtl_add_function_table_addr.to_le_bytes());
+    shellcode.extend_from_slice(&(rtl_add_function_table_addr as u64).to_le_bytes());
 
     // call rax
     shellcode.extend_from_slice(&[0xFF, 0xD0]);

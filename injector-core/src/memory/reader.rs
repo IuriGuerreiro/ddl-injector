@@ -11,9 +11,12 @@ use crate::InjectionError;
 /// * `address` - Address to read from
 /// * `buffer` - Buffer to read into
 ///
+/// # Safety
+/// This function dereferences the raw pointer `address`.
+///
 /// # Errors
 /// Returns `InjectionError::MemoryReadFailed` if read fails.
-pub fn read_memory(
+pub unsafe fn read_memory(
     process: HANDLE,
     address: *const std::ffi::c_void,
     buffer: &mut [u8],
@@ -35,8 +38,7 @@ pub fn read_memory(
 
     if bytes_read != buffer.len() {
         return Err(InjectionError::MemoryReadFailed(
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
+            std::io::Error::other(
                 "Incomplete read operation"
             )
         ));
@@ -46,7 +48,10 @@ pub fn read_memory(
 }
 
 /// Read data from remote memory, returning a Vec.
-pub fn read_memory_vec(
+///
+/// # Safety
+/// This function dereferences the raw pointer `address`.
+pub unsafe fn read_memory_vec(
     process: HANDLE,
     address: *const u8,
     size: usize,

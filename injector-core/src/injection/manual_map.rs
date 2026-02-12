@@ -64,27 +64,27 @@ impl InjectionMethod for ManualMapInjector {
 
         // Step 3: Map sections
         log::info!("Step 3: Mapping sections");
-        map_sections(process.as_handle(), &pe, base_address)?;
+        unsafe { map_sections(process.as_handle(), &pe, base_address)?; }
 
         // Step 4: Resolve imports
         log::info!("Step 4: Resolving imports");
-        resolve_imports(process.as_handle(), &pe, base_address)?;
+        unsafe { resolve_imports(process.as_handle(), &pe, base_address)?; }
 
         // Step 5: Process relocations
         log::info!("Step 5: Processing relocations");
-        process_relocations(process.as_handle(), &pe, base_address)?;
+        unsafe { process_relocations(process.as_handle(), &pe, base_address)?; }
 
         // Step 6: Process TLS callbacks
         log::info!("Step 6: Processing TLS callbacks");
-        process_tls_callbacks(process.as_handle(), &pe, base_address)?;
+        unsafe { process_tls_callbacks(process.as_handle(), &pe, base_address)?; }
 
         // Step 7: Register exception handlers (x64 only)
         log::info!("Step 7: Registering exception handlers");
-        register_exception_handlers(process.as_handle(), &pe, base_address)?;
+        unsafe { register_exception_handlers(process.as_handle(), &pe, base_address)?; }
 
         // Step 8: Protect sections
         log::info!("Step 8: Setting memory protection");
-        protect_sections(process.as_handle(), &pe, base_address)?;
+        unsafe { protect_sections(process.as_handle(), &pe, base_address)?; }
 
         // Step 9: Execute DllMain
         log::info!("Step 9: Executing DllMain");
@@ -126,7 +126,7 @@ impl InjectionMethod for ManualMapInjector {
                 process.as_handle(),
                 None,
                 0,
-                Some(std::mem::transmute(shellcode_mem.address())),
+                Some(std::mem::transmute::<*mut u8, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(shellcode_mem.address())),
                 None,
                 0,
                 None,

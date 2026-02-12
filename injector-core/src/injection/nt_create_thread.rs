@@ -47,7 +47,7 @@ impl NtCreateThreadExInjector {
             let func_addr = GetProcAddress(ntdll, s!("NtCreateThreadEx"))
                 .ok_or(InjectionError::NtCreateThreadExNotFound)?;
 
-            Ok(std::mem::transmute(func_addr))
+            Ok(std::mem::transmute::<unsafe extern "system" fn() -> isize, NtCreateThreadExFn>(func_addr))
         }
     }
 
@@ -119,7 +119,7 @@ impl InjectionMethod for NtCreateThreadExInjector {
         if status != 0 {
             log::error!("NtCreateThreadEx failed with status: 0x{:08X}", status);
             return Err(InjectionError::CreateThreadFailed(
-                std::io::Error::new(std::io::ErrorKind::Other, format!("NtCreateThreadEx failed with status 0x{:08X}", status))
+                std::io::Error::other(format!("NtCreateThreadEx failed with status 0x{:08X}", status))
             ));
         }
 
@@ -136,8 +136,7 @@ impl InjectionMethod for NtCreateThreadExInjector {
                         if exit_code == 0 {
                             log::error!("LoadLibraryW returned NULL");
                             let _ = CloseHandle(thread_handle);
-                            return Err(InjectionError::Io(std::io::Error::new(
-                                std::io::ErrorKind::Other,
+                            return Err(InjectionError::Io(std::io::Error::other(
                                 "LoadLibraryW failed in remote thread"
                             )));
                         }

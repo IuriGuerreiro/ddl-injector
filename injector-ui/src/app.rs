@@ -100,6 +100,7 @@ struct UiState {
 pub struct LogEntry {
     pub level: log::Level,
     pub message: String,
+    #[allow(dead_code)]
     pub timestamp: std::time::SystemTime,
 }
 

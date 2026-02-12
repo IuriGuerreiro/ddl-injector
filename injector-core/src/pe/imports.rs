@@ -17,7 +17,10 @@ use super::headers::*;
 /// This processes the import directory, loads each DLL, resolves imports by name
 /// or ordinal, and writes the function addresses to the Import Address Table (IAT)
 /// in the remote process.
-pub fn resolve_imports(
+///
+/// # Safety
+/// This function dereferences the raw pointer `base_address`.
+pub unsafe fn resolve_imports(
     process: HANDLE,
     pe: &PeFile,
     base_address: *mut u8,
@@ -196,21 +199,13 @@ pub fn resolve_imports(
             // Write function address to IAT in remote process
             let iat_address = unsafe { base_address.add(current_iat_rva as usize) };
 
-            if pe.is_64bit {
-                let func_addr = function_address as u64;
-                write_memory(
-                    process,
-                    iat_address,
-                    &func_addr.to_le_bytes(),
-                )?;
-            } else {
-                let func_addr = function_address as u32;
-                write_memory(
-                    process,
-                    iat_address,
-                    &func_addr.to_le_bytes(),
-                )?;
-            }
+            // Write function address to IAT (usize ensures correct pointer width)
+            let func_addr = function_address as usize;
+            write_memory(
+                process,
+                iat_address,
+                &func_addr.to_le_bytes(),
+            )?;
 
             thunk_offset += thunk_size;
         }
