@@ -60,6 +60,36 @@ pub enum InjectionError {
     #[error("Failed to apply relocations")]
     RelocationFailed(String),
 
+    #[error("Invalid PE file: {0}")]
+    InvalidPeFile(String),
+
+    #[error("Invalid DOS header: expected 'MZ', found {0:04X}")]
+    InvalidDosHeader(u16),
+
+    #[error("Invalid PE signature: expected 'PE\\0\\0'")]
+    InvalidPeSignature,
+
+    #[error("Unsupported architecture: {0}")]
+    UnsupportedArchitecture(String),
+
+    #[error("Section '{0}' not found in PE file")]
+    SectionNotFound(String),
+
+    #[error("Import module '{0}' not found")]
+    ImportModuleNotFound(String),
+
+    #[error("Import function '{0}' not found in '{1}'")]
+    ImportFunctionNotFound(String, String),
+
+    #[error("Failed to read PE file: {0}")]
+    PeReadError(#[source] std::io::Error),
+
+    #[error("Invalid relocation type: {0}")]
+    InvalidRelocationType(u16),
+
+    #[error("DLL entry point returned FALSE")]
+    DllMainFailed,
+
     #[error("IO error")]
     Io(#[from] std::io::Error),
 }
