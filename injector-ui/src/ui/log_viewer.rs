@@ -58,10 +58,10 @@ impl LogViewerState {
 }
 
 pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut LogViewerState) {
-    egui::Frame::new()
+    egui::Frame::none()
         .fill(egui::Color32::from_rgb(9, 14, 22))
-        .inner_margin(egui::Margin::same(12))
-        .corner_radius(egui::CornerRadius::same(12))
+        .inner_margin(egui::Margin::same(12.0))
+        .rounding(12.0)
         .show(ui, |ui| {
             ui.horizontal(|ui| {
                 ui.heading("TELEMETRY FEED");
@@ -147,11 +147,11 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
                             ),
                         };
 
-                        egui::Frame::new()
+                        egui::Frame::none()
                             .fill(egui::Color32::from_rgb(16, 20, 31))
                             .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(33, 43, 64)))
-                            .inner_margin(egui::Margin::same(8))
-                            .corner_radius(egui::CornerRadius::same(8))
+                            .inner_margin(egui::Margin::same(8.0))
+                            .rounding(8.0)
                             .show(ui, |ui| {
                                 ui.horizontal_wrapped(|ui| {
                                     let datetime: DateTime<Local> = entry.timestamp.into();
@@ -161,10 +161,10 @@ pub fn render(ui: &mut egui::Ui, logs: &Arc<Mutex<Vec<LogEntry>>>, state: &mut L
                                         )
                                         .color(egui::Color32::from_gray(160)),
                                     );
-                                    egui::Frame::new()
+                                    egui::Frame::none()
                                         .fill(tag_bg)
-                                        .inner_margin(egui::Margin::symmetric(6, 2))
-                                        .corner_radius(egui::CornerRadius::same(4))
+                                        .inner_margin(egui::Margin::symmetric(6.0, 2.0))
+                                        .rounding(4.0)
                                         .show(ui, |ui| {
                                             ui.small(
                                                 egui::RichText::new(label).color(tag_fg).strong(),

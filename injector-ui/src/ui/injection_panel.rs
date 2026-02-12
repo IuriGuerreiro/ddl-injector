@@ -29,10 +29,10 @@ pub fn render(
 ) -> InjectionPanelAction {
     let mut action = InjectionPanelAction::None;
 
-    let frame = egui::Frame::new()
+    let frame = egui::Frame::none()
         .fill(egui::Color32::from_rgb(11, 16, 27))
-        .inner_margin(egui::Margin::same(18))
-        .corner_radius(egui::CornerRadius::same(16));
+        .inner_margin(egui::Margin::same(18.0))
+        .rounding(16.0);
 
     frame.show(ui, |ui| {
         ui.vertical(|ui| {
@@ -163,11 +163,11 @@ pub fn render(
 
             if let Some(error) = last_error {
                 ui.add_space(12.0);
-                let warning_frame = egui::Frame::new()
+                let warning_frame = egui::Frame::none()
                     .fill(egui::Color32::from_rgb(64, 18, 24))
                     .stroke(egui::Stroke::new(1.0, egui::Color32::from_rgb(214, 72, 98)))
-                    .inner_margin(egui::Margin::same(10))
-                    .corner_radius(egui::CornerRadius::same(10));
+                    .inner_margin(egui::Margin::same(10.0))
+                    .rounding(10.0);
                 warning_frame.show(ui, |ui| {
                     ui.label(
                         egui::RichText::new("INJECTION FAULT")
@@ -197,10 +197,10 @@ fn status_chip(ui: &mut egui::Ui, label: &str, active: bool) {
         )
     };
 
-    egui::Frame::new()
+    egui::Frame::none()
         .fill(fill)
-        .inner_margin(egui::Margin::symmetric(8, 4))
-        .corner_radius(egui::CornerRadius::same(6))
+        .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+        .rounding(6.0)
         .show(ui, |ui| {
             ui.label(text);
         });

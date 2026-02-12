@@ -10,10 +10,10 @@ pub fn render(
     filter: &mut String,
     refresh_flag: &mut bool,
 ) {
-    let frame = egui::Frame::new()
+    let frame = egui::Frame::none()
         .fill(egui::Color32::from_rgb(11, 16, 27))
-        .inner_margin(egui::Margin::same(14))
-        .corner_radius(egui::CornerRadius::same(14));
+        .inner_margin(egui::Margin::same(14.0))
+        .rounding(14.0);
 
     frame.show(ui, |ui| {
         ui.horizontal(|ui| {
@@ -71,7 +71,7 @@ pub fn render(
             .show(ui, |ui| {
                 for (idx, process) in filtered {
                     let is_selected = *selected == Some(idx);
-                    let item_frame = egui::Frame::new()
+                    let item_frame = egui::Frame::none()
                         .fill(if is_selected {
                             egui::Color32::from_rgb(29, 68, 133)
                         } else {
@@ -85,8 +85,8 @@ pub fn render(
                                 egui::Color32::from_rgb(36, 45, 64)
                             },
                         ))
-                        .inner_margin(egui::Margin::same(10))
-                        .corner_radius(egui::CornerRadius::same(10));
+                        .inner_margin(egui::Margin::same(10.0))
+                        .rounding(10.0);
 
                     let response = item_frame
                         .show(ui, |ui| {

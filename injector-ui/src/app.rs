@@ -148,7 +148,7 @@ impl InjectorApp {
     fn configure_style(ctx: &egui::Context) {
         let mut style = (*ctx.style()).clone();
         style.spacing.item_spacing = egui::vec2(10.0, 10.0);
-        style.spacing.window_margin = egui::Margin::same(14);
+        style.spacing.window_margin = egui::Margin::same(14.0);
         style.spacing.button_padding = egui::vec2(14.0, 8.0);
 
         style.visuals = egui::Visuals::dark();
@@ -164,7 +164,6 @@ impl InjectorApp {
         style.visuals.widgets.inactive.rounding = 10.0.into();
         style.visuals.widgets.hovered.rounding = 10.0.into();
         style.visuals.widgets.active.rounding = 10.0.into();
-        style.visuals.selection.rounding = 8.0.into();
 
         style.visuals.widgets.inactive.bg_fill = egui::Color32::from_rgb(22, 29, 44);
         style.visuals.widgets.hovered.bg_fill = egui::Color32::from_rgb(36, 55, 88);
