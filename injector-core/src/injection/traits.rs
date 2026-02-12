@@ -98,3 +98,116 @@ pub fn validate_architecture(handle: &ProcessHandle) -> InjectionResult<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    fn test_dll_path() -> PathBuf {
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        PathBuf::from(manifest_dir)
+            .parent()
+            .unwrap()
+            .join("target")
+            .join("release")
+            .join("test_dll.dll")
+    }
+
+    #[test]
+    fn test_validate_dll_path_absolute() {
+        let dll_path = test_dll_path();
+        if !dll_path.exists() {
+            // Create a temporary DLL file for testing
+            std::fs::create_dir_all(dll_path.parent().unwrap()).ok();
+            std::fs::write(&dll_path, b"test").ok();
+        }
+
+        let result = validate_dll_path(&dll_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_dll_path_relative() {
+        let relative_path = Path::new("test.dll");
+        let result = validate_dll_path(relative_path);
+
+        assert!(result.is_err());
+        match result {
+            Err(InjectionError::RelativePath) => {}
+            _ => panic!("Expected RelativePath error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_dll_path_not_exists() {
+        let non_existent = PathBuf::from("C:\\nonexistent\\path\\test.dll");
+        let result = validate_dll_path(&non_existent);
+
+        assert!(result.is_err());
+        match result {
+            Err(InjectionError::DllNotFound(_)) => {}
+            _ => panic!("Expected DllNotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_validate_dll_path_wrong_extension() {
+        // Path without .dll extension should succeed but log warning
+        let mut temp_path = std::env::temp_dir();
+        temp_path.push("test.txt");
+
+        std::fs::write(&temp_path, b"test").ok();
+
+        let result = validate_dll_path(&temp_path);
+        // Should succeed despite wrong extension (just warning)
+        assert!(result.is_ok());
+
+        std::fs::remove_file(&temp_path).ok();
+    }
+
+    #[test]
+    fn test_is_process_64bit_own_process() {
+        use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+
+        let pid = std::process::id();
+        let handle = crate::ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION)
+            .expect("Failed to open own process");
+
+        let result = is_process_64bit(&handle);
+        assert!(result.is_ok());
+
+        let is_64bit = result.unwrap();
+
+        // Should match our own architecture
+        #[cfg(target_pointer_width = "64")]
+        assert!(is_64bit);
+
+        #[cfg(target_pointer_width = "32")]
+        assert!(!is_64bit);
+    }
+
+    #[test]
+    fn test_validate_architecture_own_process() {
+        use windows::Win32::System::Threading::PROCESS_QUERY_INFORMATION;
+
+        let pid = std::process::id();
+        let handle = crate::ProcessHandle::open(pid, PROCESS_QUERY_INFORMATION)
+            .expect("Failed to open own process");
+
+        // Validating architecture against own process should always succeed
+        let result = validate_architecture(&handle);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_injection_result_type() {
+        // Test that InjectionResult is the correct type alias
+        fn returns_injection_result() -> InjectionResult<()> {
+            Ok(())
+        }
+
+        let result = returns_injection_result();
+        assert!(result.is_ok());
+    }
+}

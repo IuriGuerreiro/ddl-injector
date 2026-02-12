@@ -243,3 +243,67 @@ fn create_loader_shellcode_x86(dll_base: *mut u8, entry_point: u32) -> Vec<u8> {
 
     shellcode
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_manual_map_injector_name() {
+        let injector = ManualMapInjector;
+        assert_eq!(injector.name(), "Manual Map");
+    }
+
+    #[test]
+    fn test_manual_map_required_access() {
+        let injector = ManualMapInjector;
+        let access = injector.required_access();
+
+        // Should include all required flags
+        assert!(access.contains(PROCESS_CREATE_THREAD));
+        assert!(access.contains(PROCESS_QUERY_INFORMATION));
+        assert!(access.contains(PROCESS_VM_OPERATION));
+        assert!(access.contains(PROCESS_VM_READ));
+        assert!(access.contains(PROCESS_VM_WRITE));
+    }
+
+    #[test]
+    fn test_create_loader_shellcode_x64() {
+        let dll_base = 0x180000000 as *mut u8;
+        let entry_point = 0x1000;
+
+        let shellcode = create_loader_shellcode_x64(dll_base, entry_point);
+
+        // Verify shellcode is not empty
+        assert!(shellcode.len() > 0);
+
+        // Verify it ends with ret (0xC3)
+        assert_eq!(*shellcode.last().unwrap(), 0xC3);
+
+        // Verify it starts with shadow space setup (sub rsp, 0x28)
+        assert_eq!(shellcode[0], 0x48);
+        assert_eq!(shellcode[1], 0x83);
+        assert_eq!(shellcode[2], 0xEC);
+        assert_eq!(shellcode[3], 0x28);
+    }
+
+    #[test]
+    fn test_create_loader_shellcode_x86() {
+        let dll_base = 0x10000000 as *mut u8;
+        let entry_point = 0x2000;
+
+        let shellcode = create_loader_shellcode_x86(dll_base, entry_point);
+
+        // Verify shellcode is not empty
+        assert!(shellcode.len() > 0);
+
+        // Verify it ends with ret 0xC (stdcall cleanup)
+        assert_eq!(shellcode[shellcode.len() - 3], 0xC2);
+        assert_eq!(shellcode[shellcode.len() - 2], 0x0C);
+        assert_eq!(shellcode[shellcode.len() - 1], 0x00);
+
+        // Verify it starts with push 0 (lpvReserved)
+        assert_eq!(shellcode[0], 0x6A);
+        assert_eq!(shellcode[1], 0x00);
+    }
+}

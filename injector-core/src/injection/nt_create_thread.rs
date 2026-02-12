@@ -169,3 +169,57 @@ impl InjectionMethod for NtCreateThreadExInjector {
             | PROCESS_QUERY_INFORMATION
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_nt_create_thread_ex_injector_new() {
+        let injector = NtCreateThreadExInjector::new();
+        assert_eq!(injector.name(), "NtCreateThreadEx");
+    }
+
+    #[test]
+    fn test_nt_create_thread_ex_injector_default() {
+        let injector = NtCreateThreadExInjector::default();
+        assert_eq!(injector.name(), "NtCreateThreadEx");
+    }
+
+    #[test]
+    fn test_nt_create_thread_ex_name() {
+        let injector = NtCreateThreadExInjector::new();
+        assert_eq!(injector.name(), "NtCreateThreadEx");
+    }
+
+    #[test]
+    fn test_nt_create_thread_ex_required_access() {
+        let injector = NtCreateThreadExInjector::new();
+        let access = injector.required_access();
+
+        // Should include all required flags
+        assert!(access.contains(PROCESS_CREATE_THREAD));
+        assert!(access.contains(PROCESS_VM_OPERATION));
+        assert!(access.contains(PROCESS_VM_WRITE));
+        assert!(access.contains(PROCESS_QUERY_INFORMATION));
+    }
+
+    #[test]
+    fn test_get_nt_create_thread_ex() {
+        let result = NtCreateThreadExInjector::get_nt_create_thread_ex();
+        assert!(result.is_ok());
+
+        // Function pointer should not be null
+        let func = result.unwrap();
+        assert!(func as usize != 0);
+    }
+
+    #[test]
+    fn test_get_loadlibrary_address() {
+        let result = NtCreateThreadExInjector::get_loadlibrary_address();
+        assert!(result.is_ok());
+
+        let addr = result.unwrap();
+        assert!(!addr.is_null());
+    }
+}

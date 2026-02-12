@@ -160,3 +160,46 @@ impl InjectionMethod for QueueUserApcInjector {
         PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_queue_user_apc_injector_new() {
+        let injector = QueueUserApcInjector::new();
+        assert_eq!(injector.name(), "QueueUserAPC");
+    }
+
+    #[test]
+    fn test_queue_user_apc_injector_default() {
+        let injector = QueueUserApcInjector::default();
+        assert_eq!(injector.name(), "QueueUserAPC");
+    }
+
+    #[test]
+    fn test_queue_user_apc_name() {
+        let injector = QueueUserApcInjector::new();
+        assert_eq!(injector.name(), "QueueUserAPC");
+    }
+
+    #[test]
+    fn test_queue_user_apc_required_access() {
+        let injector = QueueUserApcInjector::new();
+        let access = injector.required_access();
+
+        // Should include required flags
+        assert!(access.contains(PROCESS_VM_OPERATION));
+        assert!(access.contains(PROCESS_VM_WRITE));
+        assert!(access.contains(PROCESS_QUERY_INFORMATION));
+    }
+
+    #[test]
+    fn test_get_loadlibrary_address() {
+        let result = QueueUserApcInjector::get_loadlibrary_address();
+        assert!(result.is_ok());
+
+        let addr = result.unwrap();
+        assert!(!addr.is_null());
+    }
+}
