@@ -133,3 +133,124 @@ pub enum PrivilegeError {
     #[error("Not running as administrator")]
     NotAdministrator,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_process_error_display() {
+        let error = ProcessError::ProcessNotFound(1234);
+        assert_eq!(error.to_string(), "Process not found: 1234");
+
+        let error = ProcessError::NoAlertableThreads;
+        assert_eq!(error.to_string(), "No alertable threads found");
+
+        let error = ProcessError::InvalidHandle;
+        assert_eq!(error.to_string(), "Invalid process handle");
+    }
+
+    #[test]
+    fn test_injection_error_display() {
+        let error = InjectionError::DllNotFound("test.dll".to_string());
+        assert_eq!(error.to_string(), "DLL file not found: test.dll");
+
+        let error = InjectionError::RelativePath;
+        assert_eq!(error.to_string(), "DLL path must be absolute");
+
+        let error = InjectionError::InvalidPeSignature;
+        assert_eq!(error.to_string(), "Invalid PE signature: expected 'PE\\0\\0'");
+    }
+
+    #[test]
+    fn test_privilege_error_display() {
+        let error = PrivilegeError::NotAdministrator;
+        assert_eq!(error.to_string(), "Not running as administrator");
+
+        let error = PrivilegeError::PrivilegeNotHeld("SeDebugPrivilege".to_string());
+        assert_eq!(error.to_string(), "Privilege not held: SeDebugPrivilege");
+    }
+
+    #[test]
+    fn test_architecture_mismatch_error() {
+        let error = InjectionError::ArchitectureMismatch {
+            injector: "x64".to_string(),
+            target: "x86".to_string(),
+        };
+
+        let msg = error.to_string();
+        assert!(msg.contains("x64"));
+        assert!(msg.contains("x86"));
+    }
+
+    #[test]
+    fn test_import_function_not_found_error() {
+        let error = InjectionError::ImportFunctionNotFound(
+            "GetProcAddress".to_string(),
+            "kernel32.dll".to_string(),
+        );
+
+        let msg = error.to_string();
+        assert!(msg.contains("GetProcAddress"));
+        assert!(msg.contains("kernel32.dll"));
+    }
+
+    #[test]
+    fn test_invalid_dos_header_error() {
+        let error = InjectionError::InvalidDosHeader(0x1234);
+
+        let msg = error.to_string();
+        assert!(msg.contains("1234"));
+        assert!(msg.contains("MZ"));
+    }
+
+    #[test]
+    fn test_process_error_from_io() {
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "test error");
+        let error = ProcessError::OpenProcessFailed(io_error);
+
+        assert!(error.to_string().contains("Failed to open process handle"));
+    }
+
+    #[test]
+    fn test_injection_error_from_process_error() {
+        let process_error = ProcessError::ProcessNotFound(5678);
+        let injection_error = InjectionError::from(process_error);
+
+        // Should wrap the process error
+        let msg = injection_error.to_string();
+        assert!(msg.contains("Process operation failed"));
+    }
+
+    #[test]
+    fn test_injection_error_from_io() {
+        let io_error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "access denied");
+        let injection_error = InjectionError::from(io_error);
+
+        assert!(injection_error.to_string().contains("IO error"));
+    }
+
+    #[test]
+    fn test_relocation_failed_error() {
+        let error = InjectionError::RelocationFailed("Invalid relocation entry".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Failed to apply relocations"));
+    }
+
+    #[test]
+    fn test_invalid_relocation_type() {
+        let error = InjectionError::InvalidRelocationType(99);
+        let msg = error.to_string();
+        assert!(msg.contains("Invalid relocation type"));
+        assert!(msg.contains("99"));
+    }
+
+    #[test]
+    fn test_section_not_found_error() {
+        let error = InjectionError::SectionNotFound(".text".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Section"));
+        assert!(msg.contains(".text"));
+        assert!(msg.contains("not found"));
+    }
+}

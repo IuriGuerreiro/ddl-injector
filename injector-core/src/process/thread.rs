@@ -106,3 +106,118 @@ impl Drop for SnapshotGuard {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_enumerate_threads_own_process() {
+        let pid = std::process::id();
+
+        let result = ThreadEnumerator::enumerate(pid);
+        assert!(result.is_ok());
+
+        let threads = result.unwrap();
+
+        // Should have at least one thread (current thread)
+        assert!(threads.len() >= 1);
+
+        // All threads should belong to our process
+        for thread in &threads {
+            assert_eq!(thread.owner_process_id, pid);
+        }
+    }
+
+    #[test]
+    fn test_thread_info_fields() {
+        let pid = std::process::id();
+
+        let threads = ThreadEnumerator::enumerate(pid).unwrap();
+
+        if let Some(thread) = threads.first() {
+            // Thread ID should be non-zero
+            assert!(thread.thread_id > 0);
+
+            // Owner PID should match
+            assert_eq!(thread.owner_process_id, pid);
+
+            // Base priority should be reasonable (typically 0-31)
+            assert!(thread.base_priority >= -2 && thread.base_priority <= 31);
+        }
+    }
+
+    #[test]
+    fn test_open_thread() {
+        let pid = std::process::id();
+        let threads = ThreadEnumerator::enumerate(pid).unwrap();
+
+        if let Some(thread) = threads.first() {
+            let result = ThreadHandle::open(
+                thread.thread_id,
+                THREAD_QUERY_INFORMATION | THREAD_SUSPEND_RESUME,
+            );
+
+            assert!(result.is_ok());
+
+            let handle = result.unwrap();
+            assert!(!handle.as_handle().is_invalid());
+        }
+    }
+
+    #[test]
+    fn test_thread_handle_raii() {
+        let pid = std::process::id();
+        let threads = ThreadEnumerator::enumerate(pid).unwrap();
+
+        if let Some(thread) = threads.first() {
+            let handle_value;
+
+            {
+                let handle = ThreadHandle::open(
+                    thread.thread_id,
+                    THREAD_QUERY_INFORMATION,
+                ).unwrap();
+
+                handle_value = handle.as_handle();
+                assert!(!handle_value.is_invalid());
+            } // handle dropped here, should close
+
+            // Can't easily verify handle is closed without causing errors,
+            // but test passes if no crash occurs
+        }
+    }
+
+    #[test]
+    fn test_enumerate_invalid_process() {
+        // Try to enumerate threads for a process that definitely doesn't exist
+        let result = ThreadEnumerator::enumerate(0xFFFFFFFF);
+
+        // Should succeed but return empty list (no threads for invalid PID)
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 0);
+    }
+
+    #[test]
+    fn test_open_invalid_thread() {
+        // Try to open a thread that doesn't exist
+        let result = ThreadHandle::open(0xFFFFFFFF, THREAD_QUERY_INFORMATION);
+
+        // Should fail
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_thread_enumeration_multiple_calls() {
+        let pid = std::process::id();
+
+        // Call enumerate multiple times
+        let threads1 = ThreadEnumerator::enumerate(pid).unwrap();
+        let threads2 = ThreadEnumerator::enumerate(pid).unwrap();
+
+        // Both should succeed and have similar counts
+        // (may not be exactly the same due to thread creation/destruction)
+        assert!(threads1.len() > 0);
+        assert!(threads2.len() > 0);
+    }
+}
