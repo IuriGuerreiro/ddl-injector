@@ -6,18 +6,13 @@ use eframe::egui;
 
 mod app;
 mod config;
+mod logging;
 mod ui;
 
 use app::InjectorApp;
 use config::Config;
 
 fn main() -> Result<(), eframe::Error> {
-    // Initialize logging
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .init();
-
-    log::info!("Starting DLL Injector v{}", env!("CARGO_PKG_VERSION"));
-
     // Load config to get window size
     let config = Config::load();
 

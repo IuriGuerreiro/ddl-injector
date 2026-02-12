@@ -7,6 +7,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::ui;
 use crate::config::Config;
+use crate::logging::LogEntry;
 
 /// Main application state.
 pub struct InjectorApp {
@@ -39,6 +40,9 @@ pub struct InjectorApp {
 
     /// UI state
     ui_state: UiState,
+
+    /// Log viewer state
+    log_viewer_state: ui::log_viewer::LogViewerState,
 
     /// Application configuration
     config: Config,
@@ -95,14 +99,6 @@ struct UiState {
     show_settings: bool,
 }
 
-/// Log entry with level and message.
-#[derive(Clone)]
-pub struct LogEntry {
-    pub level: log::Level,
-    pub message: String,
-    #[allow(dead_code)]
-    pub timestamp: std::time::SystemTime,
-}
 
 impl InjectorApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
@@ -143,6 +139,7 @@ impl InjectorApp {
                 refresh_processes: true, // Refresh on startup
                 ..Default::default()
             },
+            log_viewer_state: Default::default(),
             config,
         };
 
@@ -170,9 +167,24 @@ impl InjectorApp {
         ctx.set_style(style);
     }
 
-    fn setup_logger(_logs: Arc<Mutex<Vec<LogEntry>>>) {
-        // Logger will be properly set up in Phase 9
-        // For now, just use env_logger
+    fn setup_logger(logs: Arc<Mutex<Vec<LogEntry>>>) {
+        use crate::logging;
+
+        // Initialize dual logger (file + UI)
+        if let Err(e) = logging::DualLogger::init(logs) {
+            eprintln!("Failed to initialize logger: {}", e);
+            // Fallback to basic env_logger
+            env_logger::Builder::from_env(
+                env_logger::Env::default().default_filter_or("info")
+            ).init();
+        }
+
+        // Rotate old logs (keep last 10)
+        if let Err(e) = logging::rotate_logs(10) {
+            log::warn!("Failed to rotate logs: {}", e);
+        }
+
+        log::info!("DLL Injector v{} starting", env!("CARGO_PKG_VERSION"));
     }
 
     fn refresh_processes(&mut self) {
@@ -367,7 +379,7 @@ impl eframe::App for InjectorApp {
             .resizable(true)
             .default_height(200.0)
             .show(ctx, |ui| {
-                ui::log_viewer::render(ui, &self.logs);
+                ui::log_viewer::render(ui, &self.logs, &mut self.log_viewer_state);
             });
 
         // Central panel - Injection controls
