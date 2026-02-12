@@ -2,6 +2,7 @@
 
 use eframe::egui;
 use injector_core::*;
+use injector_core::PrivilegeManager;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::ui;
@@ -31,6 +32,9 @@ pub struct InjectorApp {
 
     /// Is running as administrator
     is_admin: bool,
+
+    /// Has SeDebugPrivilege enabled
+    has_debug_privilege: bool,
 
     /// UI state
     ui_state: UiState,
@@ -92,6 +96,16 @@ impl InjectorApp {
         let logs = Arc::new(Mutex::new(Vec::new()));
         Self::setup_logger(logs.clone());
 
+        // Check privilege status
+        let is_admin = PrivilegeManager::is_administrator().unwrap_or(false);
+        let has_debug_privilege = if is_admin {
+            PrivilegeManager::try_enable_debug_privilege()
+        } else {
+            false
+        };
+
+        log::info!("Administrator: {}, SeDebugPrivilege: {}", is_admin, has_debug_privilege);
+
         let mut app = Self {
             processes: Vec::new(),
             selected_process: None,
@@ -100,7 +114,8 @@ impl InjectorApp {
             injection_method: InjectionMethodType::CreateRemoteThread,
             logs,
             last_error: None,
-            is_admin: false, // Stub for Phase 5
+            is_admin,
+            has_debug_privilege,
             ui_state: UiState {
                 refresh_processes: true, // Refresh on startup
                 ..Default::default()
@@ -268,6 +283,7 @@ impl eframe::App for InjectorApp {
                 &self.last_error,
                 self.ui_state.injecting,
                 self.is_admin,
+                self.has_debug_privilege,
             )
         }).inner;
 

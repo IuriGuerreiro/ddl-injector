@@ -22,20 +22,39 @@ pub fn render(
     last_error: &Option<String>,
     injecting: bool,
     is_admin: bool,
+    has_debug_privilege: bool,
 ) -> InjectionPanelAction {
     let mut action = InjectionPanelAction::None;
     ui.heading("DLL Injection");
 
-    // Admin warning
-    if !is_admin {
-        ui.add_space(5.0);
-        ui.group(|ui| {
-            ui.horizontal(|ui| {
-                ui.colored_label(egui::Color32::RED, "⚠ NOT RUNNING AS ADMINISTRATOR");
-            });
-            ui.small("Injection into system processes and most games will fail.");
+    // Privilege status display
+    ui.add_space(5.0);
+    ui.group(|ui| {
+        ui.label("Privilege Status:");
+
+        ui.horizontal(|ui| {
+            if is_admin {
+                ui.colored_label(egui::Color32::GREEN, "✓ Administrator");
+            } else {
+                ui.colored_label(egui::Color32::RED, "✗ Not Administrator");
+            }
         });
-    }
+
+        ui.horizontal(|ui| {
+            if has_debug_privilege {
+                ui.colored_label(egui::Color32::GREEN, "✓ SeDebugPrivilege");
+            } else if is_admin {
+                ui.colored_label(egui::Color32::YELLOW, "⚠ SeDebugPrivilege failed to enable");
+            } else {
+                ui.colored_label(egui::Color32::YELLOW, "⚠ SeDebugPrivilege not available");
+            }
+        });
+
+        if !is_admin {
+            ui.add_space(5.0);
+            ui.small("Run as administrator to inject into protected processes");
+        }
+    });
 
     ui.add_space(10.0);
 
