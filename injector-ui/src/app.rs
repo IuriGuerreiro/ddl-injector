@@ -6,6 +6,7 @@ use injector_core::PrivilegeManager;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use crate::ui;
+use crate::config::Config;
 
 /// Main application state.
 pub struct InjectorApp {
@@ -38,6 +39,9 @@ pub struct InjectorApp {
 
     /// UI state
     ui_state: UiState,
+
+    /// Application configuration
+    config: Config,
 }
 
 /// Available injection methods.
@@ -101,6 +105,9 @@ pub struct LogEntry {
 
 impl InjectorApp {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Load config
+        let config = Config::load();
+
         // Configure custom fonts if needed
         Self::configure_fonts(&cc.egui_ctx);
 
@@ -124,9 +131,9 @@ impl InjectorApp {
         let mut app = Self {
             processes: Vec::new(),
             selected_process: None,
-            process_filter: String::new(),
+            process_filter: config.process_filter.clone(),
             dll_path: None,
-            injection_method: InjectionMethodType::CreateRemoteThread,
+            injection_method: config.preferred_method.into(),
             logs,
             last_error: None,
             is_admin,
@@ -135,6 +142,7 @@ impl InjectorApp {
                 refresh_processes: true, // Refresh on startup
                 ..Default::default()
             },
+            config,
         };
 
         // Initial process enumeration
@@ -278,6 +286,7 @@ impl InjectorApp {
             .add_filter("DLL Files", &["dll"])
             .pick_file()
         {
+            self.config.add_recent_dll(path.clone());
             self.dll_path = Some(path);
             self.last_error = None;
         }
@@ -286,6 +295,11 @@ impl InjectorApp {
 
 impl eframe::App for InjectorApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Update window state in config
+        let size = ctx.screen_rect().size();
+        self.config.window_state.width = size.x;
+        self.config.window_state.height = size.y;
+
         // Refresh processes if flagged
         if self.ui_state.refresh_processes {
             self.refresh_processes();
@@ -297,6 +311,10 @@ impl eframe::App for InjectorApp {
                 ui.menu_button("File", |ui| {
                     if ui.button("Refresh Processes").clicked() {
                         self.ui_state.refresh_processes = true;
+                        ui.close_menu();
+                    }
+                    if ui.button("Settings").clicked() {
+                        self.ui_state.show_settings = true;
                         ui.close_menu();
                     }
                     ui.separator();
@@ -314,6 +332,20 @@ impl eframe::App for InjectorApp {
             });
         });
 
+        // Settings window
+        if self.ui_state.show_settings {
+            egui::Window::new("Settings")
+                .open(&mut self.ui_state.show_settings)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui::settings::render(
+                        ui,
+                        &mut self.config,
+                        &mut self.injection_method,
+                    );
+                });
+        }
+
         // Left panel - Process list
         egui::SidePanel::left("process_panel")
             .resizable(true)
@@ -326,6 +358,7 @@ impl eframe::App for InjectorApp {
                     &mut self.process_filter,
                     &mut self.ui_state.refresh_processes,
                 );
+                self.config.process_filter = self.process_filter.clone();
             });
 
         // Bottom panel - Logs
@@ -348,6 +381,7 @@ impl eframe::App for InjectorApp {
                 self.ui_state.injecting,
                 self.is_admin,
                 self.has_debug_privilege,
+                &self.config.recent_dlls,
             )
         }).inner;
 
@@ -359,7 +393,18 @@ impl eframe::App for InjectorApp {
             ui::injection_panel::InjectionPanelAction::PerformInjection => {
                 self.perform_injection();
             }
+            ui::injection_panel::InjectionPanelAction::SelectRecentDll(path) => {
+                self.dll_path = Some(path);
+                self.last_error = None;
+            }
             ui::injection_panel::InjectionPanelAction::None => {}
+        }
+    }
+
+    fn save(&mut self, _storage: &mut dyn eframe::Storage) {
+        // Save config on exit
+        if let Err(e) = self.config.save() {
+            log::error!("Failed to save config: {}", e);
         }
     }
 }

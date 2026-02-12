@@ -6,11 +6,12 @@ use std::path::PathBuf;
 use crate::app::InjectionMethodType;
 
 /// Actions that can be triggered from the injection panel
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InjectionPanelAction {
     None,
     OpenFileDialog,
     PerformInjection,
+    SelectRecentDll(PathBuf),
 }
 
 pub fn render(
@@ -23,6 +24,7 @@ pub fn render(
     injecting: bool,
     is_admin: bool,
     has_debug_privilege: bool,
+    recent_dlls: &[PathBuf],
 ) -> InjectionPanelAction {
     let mut action = InjectionPanelAction::None;
     ui.heading("DLL Injection");
@@ -92,6 +94,24 @@ pub fn render(
         ui.horizontal(|ui| {
             if ui.button("📁 Browse...").clicked() {
                 action = InjectionPanelAction::OpenFileDialog;
+            }
+
+            // Recent DLLs dropdown
+            if !recent_dlls.is_empty() {
+                egui::ComboBox::from_id_salt("recent_dlls")
+                    .selected_text("Recent...")
+                    .show_ui(ui, |ui| {
+                        for recent_dll in recent_dlls {
+                            let file_name = recent_dll
+                                .file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| "Unknown".to_string());
+
+                            if ui.selectable_label(false, &file_name).clicked() {
+                                action = InjectionPanelAction::SelectRecentDll(recent_dll.clone());
+                            }
+                        }
+                    });
             }
 
             if let Some(path) = dll_path {

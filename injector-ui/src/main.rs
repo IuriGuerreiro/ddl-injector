@@ -9,6 +9,7 @@ mod config;
 mod ui;
 
 use app::InjectorApp;
+use config::Config;
 
 fn main() -> Result<(), eframe::Error> {
     // Initialize logging
@@ -17,10 +18,13 @@ fn main() -> Result<(), eframe::Error> {
 
     log::info!("Starting DLL Injector v{}", env!("CARGO_PKG_VERSION"));
 
+    // Load config to get window size
+    let config = Config::load();
+
     // Configure native options
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1200.0, 800.0])
+            .with_inner_size([config.window_state.width, config.window_state.height])
             .with_min_inner_size([800.0, 600.0])
             .with_title("DLL Injector"),
         ..Default::default()
