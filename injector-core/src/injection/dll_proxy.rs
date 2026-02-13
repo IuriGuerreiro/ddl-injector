@@ -289,11 +289,11 @@ mod tests {
 
         // Use temp directory
         let temp_dir = std::env::temp_dir().join(format!(
-            "test_backup_{}",
+            "test_backup_not_exists_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs()
+                .as_nanos()
         ));
 
         fs::create_dir_all(&temp_dir).unwrap();
@@ -312,11 +312,11 @@ mod tests {
 
         // Create temp directory and file
         let temp_dir = std::env::temp_dir().join(format!(
-            "test_backup_{}",
+            "test_backup_exists_{}",
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
-                .as_secs()
+                .as_nanos()
         ));
 
         fs::create_dir_all(&temp_dir).unwrap();
