@@ -27,3 +27,10 @@ config.json
 *.exe
 *.dll
 !test-fixtures/*.dll
+
+
+DLL_SELECTION_GUIDE.md
+find_target_dlls.ps1
+SYNTAX_REFERENCE.md
+test_dll_proxy.bat
+TEST_PAYLOAD.bat

