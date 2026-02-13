@@ -23,6 +23,15 @@ pub struct InjectorApp {
     /// Selected DLL path
     dll_path: Option<PathBuf>,
 
+    /// [DLL Proxy] Target executable path
+    proxy_target_exe: Option<PathBuf>,
+
+    /// [DLL Proxy] System DLL name to proxy
+    proxy_system_dll: String,
+
+    /// [DLL Proxy] Backup original DLL before replacing
+    proxy_backup_original: bool,
+
     /// Selected injection method
     injection_method: InjectionMethodType,
 
@@ -84,7 +93,9 @@ impl InjectionMethodType {
             Self::SectionMapping => "Memory-efficient injection using section objects (STABLE)",
             Self::ThreadHijacking => "Hijack existing thread to execute injection (EXPERIMENTAL)",
             Self::ReflectiveLoader => "Advanced PIC loader - no LoadLibrary calls (RESEARCH)",
-            Self::DllProxying => "File-based hijacking - loads before anti-cheat initialization (STEALTH)",
+            Self::DllProxying => {
+                "File-based hijacking - loads before anti-cheat initialization (STEALTH)"
+            }
         }
     }
 
@@ -149,6 +160,9 @@ impl InjectorApp {
             selected_process: None,
             process_filter: config.process_filter.clone(),
             dll_path: None,
+            proxy_target_exe: None,
+            proxy_system_dll: "version.dll".to_string(),
+            proxy_backup_original: true,
             injection_method: config.preferred_method.into(),
             logs,
             last_error: None,
@@ -221,29 +235,40 @@ impl InjectorApp {
     }
 
     fn perform_injection(&mut self) {
-        let Some(selected_idx) = self.selected_process else {
-            self.last_error = Some("No process selected".into());
-            return;
-        };
-
         let Some(dll_path) = &self.dll_path else {
             self.last_error = Some("No DLL selected".into());
+            log::error!("{}", self.last_error.as_ref().unwrap());
             return;
         };
 
-        let process = &self.processes[selected_idx];
+        let process = if matches!(self.injection_method, InjectionMethodType::DllProxying) {
+            None
+        } else {
+            let Some(selected_idx) = self.selected_process else {
+                self.last_error = Some("No process selected".into());
+                log::error!("{}", self.last_error.as_ref().unwrap());
+                return;
+            };
+
+            Some(&self.processes[selected_idx])
+        };
 
         self.ui_state.injecting = true;
-        log::info!(
-            "Starting {} injection into {} (PID: {})",
-            self.injection_method.name(),
-            process.name,
-            process.pid
-        );
+        if let Some(process) = process {
+            log::info!(
+                "Starting {} injection into {} (PID: {})",
+                self.injection_method.name(),
+                process.name,
+                process.pid
+            );
+        } else {
+            log::info!("Starting {} preparation", self.injection_method.name());
+        }
 
         // Perform injection based on selected method
         let result = match self.injection_method {
             InjectionMethodType::CreateRemoteThread => {
+                let process = process.expect("process required for runtime injection");
                 let injector = CreateRemoteThreadInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -257,6 +282,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ManualMap => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ManualMapInjector;
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -270,6 +296,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::QueueUserApc => {
+                let process = process.expect("process required for runtime injection");
                 let injector = QueueUserApcInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -283,6 +310,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::NtCreateThreadEx => {
+                let process = process.expect("process required for runtime injection");
                 let injector = NtCreateThreadExInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -296,6 +324,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::SectionMapping => {
+                let process = process.expect("process required for runtime injection");
                 let injector = SectionMappingInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -309,6 +338,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ThreadHijacking => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ThreadHijackingInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -322,6 +352,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ReflectiveLoader => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ReflectiveLoaderInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -335,8 +366,45 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::DllProxying => {
-                self.last_error = Some("DLL Proxying is not supported in GUI mode. Please use the CLI: injector-cli --method dll-proxy --help".to_string());
-                log::error!("DLL Proxying requires CLI for target-exe and system-dll parameters");
+                let Some(target_exe) = &self.proxy_target_exe else {
+                    self.last_error = Some("DLL Proxying requires a target executable path".into());
+                    log::error!("{}", self.last_error.as_ref().unwrap());
+                    self.ui_state.injecting = false;
+                    return;
+                };
+
+                let system_dll_name = self.proxy_system_dll.trim();
+                if system_dll_name.is_empty() {
+                    self.last_error = Some("System DLL name is required for DLL Proxying".into());
+                    log::error!("{}", self.last_error.as_ref().unwrap());
+                    self.ui_state.injecting = false;
+                    return;
+                }
+
+                let injector = DllProxyInjector::new();
+                let options = PreparationOptions::new(system_dll_name.to_string())
+                    .with_backup(self.proxy_backup_original);
+
+                log::info!(
+                    "Preparing DLL proxy: payload={}, target_exe={}, system_dll={}, backup={}",
+                    dll_path.display(),
+                    target_exe.display(),
+                    system_dll_name,
+                    self.proxy_backup_original
+                );
+
+                match injector.prepare(target_exe, dll_path, &options) {
+                    Ok(prep_result) => {
+                        log::info!("DLL proxy preparation complete");
+                        log::info!("{}", prep_result.instructions);
+                        self.last_error = None;
+                    }
+                    Err(e) => {
+                        self.last_error = Some(format!("DLL proxy preparation failed: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                    }
+                }
+
                 self.ui_state.injecting = false;
                 return;
             }
@@ -364,6 +432,16 @@ impl InjectorApp {
         {
             self.config.add_recent_dll(path.clone());
             self.dll_path = Some(path);
+            self.last_error = None;
+        }
+    }
+
+    fn open_target_exe_file_dialog(&mut self) {
+        if let Some(path) = rfd::FileDialog::new()
+            .add_filter("Executable Files", &["exe"])
+            .pick_file()
+        {
+            self.proxy_target_exe = Some(path);
             self.last_error = None;
         }
     }
@@ -449,6 +527,9 @@ impl eframe::App for InjectorApp {
                     &self.processes,
                     self.selected_process,
                     &mut self.dll_path,
+                    &mut self.proxy_target_exe,
+                    &mut self.proxy_system_dll,
+                    &mut self.proxy_backup_original,
                     &mut self.injection_method,
                     &self.last_error,
                     self.ui_state.injecting,
@@ -467,9 +548,32 @@ impl eframe::App for InjectorApp {
             ui::injection_panel::InjectionPanelAction::PerformInjection => {
                 self.perform_injection();
             }
+            ui::injection_panel::InjectionPanelAction::OpenTargetExeDialog => {
+                self.open_target_exe_file_dialog();
+            }
             ui::injection_panel::InjectionPanelAction::SelectRecentDll(path) => {
                 self.dll_path = Some(path);
                 self.last_error = None;
+            }
+            ui::injection_panel::InjectionPanelAction::CleanupDllProxy => {
+                let Some(target_exe) = &self.proxy_target_exe else {
+                    self.last_error = Some("No target executable selected for cleanup".into());
+                    log::error!("{}", self.last_error.as_ref().unwrap());
+                    return;
+                };
+
+                let injector = DllProxyInjector::new();
+                log::info!("Starting DLL proxy cleanup for {}", target_exe.display());
+                match injector.cleanup(target_exe) {
+                    Ok(()) => {
+                        self.last_error = None;
+                        log::info!("DLL proxy cleanup completed for {}", target_exe.display());
+                    }
+                    Err(e) => {
+                        self.last_error = Some(format!("DLL proxy cleanup failed: {}", e));
+                        log::error!("{}", self.last_error.as_ref().unwrap());
+                    }
+                }
             }
             ui::injection_panel::InjectionPanelAction::None => {}
         }
