@@ -43,7 +43,8 @@ impl From<InjectionMethodType> for SerializableMethod {
             // New experimental methods default to CreateRemoteThread for config persistence
             InjectionMethodType::SectionMapping
             | InjectionMethodType::ThreadHijacking
-            | InjectionMethodType::ReflectiveLoader => Self::CreateRemoteThread,
+            | InjectionMethodType::ReflectiveLoader
+            | InjectionMethodType::DllProxying => Self::CreateRemoteThread,
         }
     }
 }

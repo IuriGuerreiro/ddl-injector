@@ -11,9 +11,11 @@ pub mod shellcode;
 
 pub use error::{InjectionError, PrivilegeError, ProcessError};
 pub use injection::{
-    CreateRemoteThreadInjector, EarlyBirdApcInjector, InjectionMethod, ManualMapInjector,
-    NtCreateThreadExInjector, QueueUserApcInjector, ReflectiveLoaderInjector,
+    CreateRemoteThreadInjector, DllProxyInjector, EarlyBirdApcInjector, InjectionMethod,
+    ManualMapInjector, NtCreateThreadExInjector, PreparationMethod, PreparationOptions,
+    PreparationResult, ProxyDllGenerator, QueueUserApcInjector, ReflectiveLoaderInjector,
     SectionMappingInjector, ThreadHijackingInjector,
 };
+pub use pe::{parse_exports, ExportInfo, ExportTable};
 pub use privilege::PrivilegeManager;
 pub use process::{ProcessEnumerator, ProcessHandle, ProcessInfo};

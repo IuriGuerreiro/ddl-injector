@@ -6,6 +6,87 @@ use std::path::Path;
 /// Result type for injection operations.
 pub type InjectionResult<T> = Result<T, InjectionError>;
 
+/// Options for preparation-based injection methods.
+#[derive(Debug, Clone)]
+pub struct PreparationOptions {
+    /// Name of the system DLL to proxy (e.g., "version.dll")
+    pub system_dll_name: String,
+    /// Whether to backup the original DLL before replacing
+    pub backup_original: bool,
+    /// Target directory (overrides auto-detection from exe path)
+    pub target_directory: Option<std::path::PathBuf>,
+}
+
+impl PreparationOptions {
+    /// Create new preparation options with required system DLL name.
+    pub fn new(system_dll_name: String) -> Self {
+        Self {
+            system_dll_name,
+            backup_original: true,
+            target_directory: None,
+        }
+    }
+
+    /// Set whether to backup the original DLL.
+    pub fn with_backup(mut self, backup: bool) -> Self {
+        self.backup_original = backup;
+        self
+    }
+
+    /// Set custom target directory.
+    pub fn with_target_directory(mut self, dir: std::path::PathBuf) -> Self {
+        self.target_directory = Some(dir);
+        self
+    }
+}
+
+/// Result of a preparation-based injection.
+#[derive(Debug, Clone)]
+pub struct PreparationResult {
+    /// Path to the generated proxy DLL
+    pub proxy_dll_path: std::path::PathBuf,
+    /// Path to backup file (if created)
+    pub backup_path: Option<std::path::PathBuf>,
+    /// Instructions for the user on how to activate the injection
+    pub instructions: String,
+}
+
+/// Interface for preparation-based injection methods (file-based, not runtime).
+///
+/// This trait is for injection methods that prepare files on disk rather than
+/// injecting into running processes. Examples include DLL proxying/hijacking.
+pub trait PreparationMethod {
+    /// Prepare the injection by generating and deploying necessary files.
+    ///
+    /// # Arguments
+    /// * `target_exe_path` - Path to the target executable
+    /// * `payload_dll_path` - Path to the payload DLL to inject
+    /// * `options` - Preparation-specific options
+    ///
+    /// # Returns
+    /// * `Ok(PreparationResult)` - Preparation succeeded, contains deployment info
+    /// * `Err(InjectionError)` - Preparation failed
+    fn prepare(
+        &self,
+        target_exe_path: &Path,
+        payload_dll_path: &Path,
+        options: &PreparationOptions,
+    ) -> InjectionResult<PreparationResult>;
+
+    /// Get the name of this preparation method.
+    fn name(&self) -> &'static str;
+
+    /// Clean up deployed files (restore backups, remove proxy).
+    ///
+    /// # Arguments
+    /// * `target_exe_path` - Path to the target executable
+    ///
+    /// # Returns
+    /// * `Ok(())` - Cleanup succeeded
+    /// * `Err(InjectionError)` - Cleanup failed
+    fn cleanup(&self, target_exe_path: &Path) -> InjectionResult<()>;
+}
+
 /// Common interface for all DLL injection methods.
 ///
 /// Each injection technique (CreateRemoteThread, Manual Mapping, etc.)

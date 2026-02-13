@@ -1,6 +1,7 @@
 //! PE file parsing and manipulation.
 
 mod exceptions;
+mod exports;
 mod headers;
 mod imports;
 mod parser;
@@ -9,6 +10,7 @@ mod sections;
 mod tls;
 
 pub use exceptions::register_exception_handlers;
+pub use exports::{parse_exports, ExportInfo, ExportTable};
 pub use headers::*;
 pub use imports::resolve_imports;
 pub use parser::PeFile;

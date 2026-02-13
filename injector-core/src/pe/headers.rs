@@ -272,6 +272,23 @@ pub struct ImageTlsDirectory32 {
     pub characteristics: u32,
 }
 
+/// Export Directory
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct ImageExportDirectory {
+    pub characteristics: u32,
+    pub time_date_stamp: u32,
+    pub major_version: u16,
+    pub minor_version: u16,
+    pub name: u32,                    // RVA to DLL name
+    pub base: u32,                    // Starting ordinal
+    pub number_of_functions: u32,     // Number of entries in EAT
+    pub number_of_names: u32,         // Number of entries in name pointer table
+    pub address_of_functions: u32,    // RVA to Export Address Table (EAT)
+    pub address_of_names: u32,        // RVA to Export Name Pointer Table
+    pub address_of_name_ordinals: u32, // RVA to Export Ordinal Table
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -150,6 +150,21 @@ pub enum InjectionError {
     #[error("No suitable threads found for injection")]
     NoSuitableThreads,
 
+    #[error("Export table not found: {0}")]
+    ExportTableNotFound(String),
+
+    #[error("Proxy compilation failed: {0}")]
+    ProxyCompilationFailed(String),
+
+    #[error("Failed to embed payload: {0}")]
+    PayloadEmbeddingFailed(String),
+
+    #[error("Target directory not found: {0}")]
+    TargetDirectoryNotFound(String),
+
+    #[error("Operation not supported")]
+    UnsupportedOperation,
+
     #[error("IO error")]
     Io(#[from] std::io::Error),
 }
@@ -300,5 +315,40 @@ mod tests {
         assert!(msg.contains("Section"));
         assert!(msg.contains(".text"));
         assert!(msg.contains("not found"));
+    }
+
+    #[test]
+    fn test_export_table_not_found_error() {
+        let error = InjectionError::ExportTableNotFound("No export directory".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Export table not found"));
+    }
+
+    #[test]
+    fn test_proxy_compilation_failed_error() {
+        let error = InjectionError::ProxyCompilationFailed("cargo build failed".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Proxy compilation failed"));
+    }
+
+    #[test]
+    fn test_payload_embedding_failed_error() {
+        let error = InjectionError::PayloadEmbeddingFailed("File copy failed".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Failed to embed payload"));
+    }
+
+    #[test]
+    fn test_target_directory_not_found_error() {
+        let error = InjectionError::TargetDirectoryNotFound("C:\\invalid\\path".to_string());
+        let msg = error.to_string();
+        assert!(msg.contains("Target directory not found"));
+    }
+
+    #[test]
+    fn test_unsupported_operation_error() {
+        let error = InjectionError::UnsupportedOperation;
+        let msg = error.to_string();
+        assert_eq!(msg, "Operation not supported");
     }
 }

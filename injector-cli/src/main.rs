@@ -8,13 +8,13 @@ use std::path::PathBuf;
 #[command(name = "injector-cli")]
 #[command(about = "DLL injection tool with multiple injection methods", long_about = None)]
 struct Args {
-    /// Target process name or PID
+    /// Target process name or PID (not used for dll-proxy method)
     #[arg(value_name = "PROCESS")]
-    process: String,
+    process: Option<String>,
 
-    /// Path to the DLL file to inject
+    /// Path to the DLL file to inject (payload for dll-proxy)
     #[arg(value_name = "DLL_PATH")]
-    dll_path: PathBuf,
+    dll_path: Option<PathBuf>,
 
     /// Injection method to use
     #[arg(
@@ -24,6 +24,22 @@ struct Args {
         default_value = "create-remote-thread"
     )]
     method: InjectionMethodType,
+
+    /// [DLL Proxy] Path to target executable
+    #[arg(long, value_name = "EXE_PATH")]
+    target_exe: Option<PathBuf>,
+
+    /// [DLL Proxy] System DLL to proxy (e.g., "version.dll")
+    #[arg(long, value_name = "DLL_NAME")]
+    system_dll: Option<String>,
+
+    /// [DLL Proxy] Backup original DLL before replacing
+    #[arg(long)]
+    backup: bool,
+
+    /// [DLL Proxy] Cleanup mode: restore backups
+    #[arg(long)]
+    cleanup: bool,
 }
 
 #[derive(Debug, Clone, Copy, clap::ValueEnum)]
@@ -55,6 +71,10 @@ enum InjectionMethodType {
     /// Reflective Loader injection (PIC loader, no LoadLibrary) - RESEARCH
     #[value(name = "reflective-loader")]
     ReflectiveLoader,
+
+    /// DLL Proxy/Hijacking (file-based, loads before anti-cheat) - STEALTH
+    #[value(name = "dll-proxy")]
+    DllProxy,
 }
 
 fn main() {
@@ -64,19 +84,29 @@ fn main() {
     // Parse arguments
     let args = Args::parse();
 
+    // Handle DLL Proxy method differently (preparation-based, not runtime)
+    if matches!(args.method, InjectionMethodType::DllProxy) {
+        handle_dll_proxy(&args);
+        return;
+    }
+
+    // For runtime injection methods, require process and DLL path
+    let process = args.process.as_ref().expect("PROCESS argument required for runtime injection methods");
+    let dll_path = args.dll_path.as_ref().expect("DLL_PATH argument required for runtime injection methods");
+
     // Convert DLL path to absolute if needed
-    let dll_path = if args.dll_path.is_absolute() {
-        args.dll_path
+    let dll_path = if dll_path.is_absolute() {
+        dll_path.clone()
     } else {
         std::env::current_dir()
             .expect("Failed to get current directory")
-            .join(args.dll_path)
+            .join(dll_path)
     };
 
-    println!("🔍 Searching for process: {}", args.process);
+    println!("🔍 Searching for process: {}", process);
 
     // Try to parse as PID first, otherwise treat as process name
-    let processes = if let Ok(pid) = args.process.parse::<u32>() {
+    let processes = if let Ok(pid) = process.parse::<u32>() {
         println!("   Looking for PID: {}", pid);
         match ProcessEnumerator::find_by_pid(pid) {
             Ok(info) => vec![info],
@@ -86,11 +116,11 @@ fn main() {
             }
         }
     } else {
-        println!("   Looking for process name: {}", args.process);
-        match ProcessEnumerator::find_by_name(&args.process) {
+        println!("   Looking for process name: {}", process);
+        match ProcessEnumerator::find_by_name(process) {
             Ok(procs) => {
                 if procs.is_empty() {
-                    eprintln!("❌ No processes found with name: {}", args.process);
+                    eprintln!("❌ No processes found with name: {}", process);
                     std::process::exit(1);
                 }
                 procs
@@ -202,6 +232,9 @@ fn main() {
                 Some("🔬 RESEARCH - Advanced PIC loader (not fully implemented)"),
             )
         }
+        InjectionMethodType::DllProxy => {
+            unreachable!("DLL Proxy is handled separately")
+        }
     };
 
     match result {
@@ -217,6 +250,100 @@ fn main() {
         }
         Err(e) => {
             eprintln!("\n❌ Injection failed: {}", e);
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Handle DLL Proxy injection (preparation-based method).
+fn handle_dll_proxy(args: &Args) {
+    println!("🔧 DLL Proxy/Hijacking Mode");
+    println!("   This is a file-based injection method that doesn't require a running process.");
+    println!();
+
+    let injector = DllProxyInjector::new();
+
+    // Handle cleanup mode
+    if args.cleanup {
+        let target_exe = args.target_exe.as_ref().expect("--target-exe required for cleanup");
+
+        println!("🧹 Cleaning up DLL proxy injection...");
+        println!("   Target: {}", target_exe.display());
+
+        match injector.cleanup(target_exe) {
+            Ok(()) => {
+                println!("\n✅ Cleanup successful!");
+                println!("   Backups have been restored.");
+            }
+            Err(e) => {
+                eprintln!("\n❌ Cleanup failed: {}", e);
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
+    // Normal preparation mode
+    let target_exe = args.target_exe.as_ref().expect("--target-exe required for DLL proxy method");
+    let payload_dll = args.dll_path.as_ref().expect("DLL_PATH required for DLL proxy method");
+    let system_dll = args.system_dll.as_ref().expect("--system-dll required for DLL proxy method");
+
+    // Convert paths to absolute
+    let target_exe = if target_exe.is_absolute() {
+        target_exe.clone()
+    } else {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .join(target_exe)
+    };
+
+    let payload_dll = if payload_dll.is_absolute() {
+        payload_dll.clone()
+    } else {
+        std::env::current_dir()
+            .expect("Failed to get current directory")
+            .join(payload_dll)
+    };
+
+    println!("📋 Configuration:");
+    println!("   Target executable: {}", target_exe.display());
+    println!("   Payload DLL: {}", payload_dll.display());
+    println!("   System DLL to proxy: {}", system_dll);
+    println!("   Backup original: {}", if args.backup { "Yes" } else { "No" });
+    println!();
+
+    // Validate files exist
+    if !target_exe.exists() {
+        eprintln!("❌ Target executable not found: {}", target_exe.display());
+        std::process::exit(1);
+    }
+
+    if !payload_dll.exists() {
+        eprintln!("❌ Payload DLL not found: {}", payload_dll.display());
+        std::process::exit(1);
+    }
+
+    // Create preparation options
+    let options = PreparationOptions::new(system_dll.clone())
+        .with_backup(args.backup);
+
+    // Prepare the injection
+    println!("🔨 Generating proxy DLL...");
+    println!("   This may take a moment (compiling Rust code)...");
+    println!();
+
+    match injector.prepare(&target_exe, &payload_dll, &options) {
+        Ok(result) => {
+            println!("\n{}", result.instructions);
+        }
+        Err(e) => {
+            eprintln!("\n❌ Preparation failed: {}", e);
+            eprintln!();
+            eprintln!("💡 Troubleshooting tips:");
+            eprintln!("   - Ensure Rust toolchain is installed (cargo must be in PATH)");
+            eprintln!("   - Check that the system DLL name is correct (e.g., 'version.dll')");
+            eprintln!("   - Verify you have write permissions to the target directory");
+            eprintln!("   - Make sure the target application is not running");
             std::process::exit(1);
         }
     }

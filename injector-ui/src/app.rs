@@ -58,6 +58,7 @@ pub enum InjectionMethodType {
     SectionMapping,
     ThreadHijacking,
     ReflectiveLoader,
+    DllProxying,
 }
 
 impl InjectionMethodType {
@@ -70,6 +71,7 @@ impl InjectionMethodType {
             Self::SectionMapping => "Section Mapping",
             Self::ThreadHijacking => "Thread Hijacking",
             Self::ReflectiveLoader => "Reflective Loader",
+            Self::DllProxying => "DLL Proxying",
         }
     }
 
@@ -82,6 +84,7 @@ impl InjectionMethodType {
             Self::SectionMapping => "Memory-efficient injection using section objects (STABLE)",
             Self::ThreadHijacking => "Hijack existing thread to execute injection (EXPERIMENTAL)",
             Self::ReflectiveLoader => "Advanced PIC loader - no LoadLibrary calls (RESEARCH)",
+            Self::DllProxying => "File-based hijacking - loads before anti-cheat initialization (STEALTH)",
         }
     }
 
@@ -94,6 +97,7 @@ impl InjectionMethodType {
             Self::SectionMapping,
             Self::ThreadHijacking,
             Self::ReflectiveLoader,
+            Self::DllProxying,
         ]
     }
 }
@@ -329,6 +333,12 @@ impl InjectorApp {
                     }
                 };
                 injector.inject(&handle, dll_path)
+            }
+            InjectionMethodType::DllProxying => {
+                self.last_error = Some("DLL Proxying is not supported in GUI mode. Please use the CLI: injector-cli --method dll-proxy --help".to_string());
+                log::error!("DLL Proxying requires CLI for target-exe and system-dll parameters");
+                self.ui_state.injecting = false;
+                return;
             }
         };
 
