@@ -235,29 +235,40 @@ impl InjectorApp {
     }
 
     fn perform_injection(&mut self) {
-        let Some(selected_idx) = self.selected_process else {
-            self.last_error = Some("No process selected".into());
-            return;
-        };
-
         let Some(dll_path) = &self.dll_path else {
             self.last_error = Some("No DLL selected".into());
+            log::error!("{}", self.last_error.as_ref().unwrap());
             return;
         };
 
-        let process = &self.processes[selected_idx];
+        let process = if matches!(self.injection_method, InjectionMethodType::DllProxying) {
+            None
+        } else {
+            let Some(selected_idx) = self.selected_process else {
+                self.last_error = Some("No process selected".into());
+                log::error!("{}", self.last_error.as_ref().unwrap());
+                return;
+            };
+
+            Some(&self.processes[selected_idx])
+        };
 
         self.ui_state.injecting = true;
-        log::info!(
-            "Starting {} injection into {} (PID: {})",
-            self.injection_method.name(),
-            process.name,
-            process.pid
-        );
+        if let Some(process) = process {
+            log::info!(
+                "Starting {} injection into {} (PID: {})",
+                self.injection_method.name(),
+                process.name,
+                process.pid
+            );
+        } else {
+            log::info!("Starting {} preparation", self.injection_method.name());
+        }
 
         // Perform injection based on selected method
         let result = match self.injection_method {
             InjectionMethodType::CreateRemoteThread => {
+                let process = process.expect("process required for runtime injection");
                 let injector = CreateRemoteThreadInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -271,6 +282,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ManualMap => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ManualMapInjector;
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -284,6 +296,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::QueueUserApc => {
+                let process = process.expect("process required for runtime injection");
                 let injector = QueueUserApcInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -297,6 +310,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::NtCreateThreadEx => {
+                let process = process.expect("process required for runtime injection");
                 let injector = NtCreateThreadExInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -310,6 +324,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::SectionMapping => {
+                let process = process.expect("process required for runtime injection");
                 let injector = SectionMappingInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -323,6 +338,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ThreadHijacking => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ThreadHijackingInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -336,6 +352,7 @@ impl InjectorApp {
                 injector.inject(&handle, dll_path)
             }
             InjectionMethodType::ReflectiveLoader => {
+                let process = process.expect("process required for runtime injection");
                 let injector = ReflectiveLoaderInjector::new();
                 let handle = match ProcessHandle::open(process.pid, injector.required_access()) {
                     Ok(h) => h,
@@ -367,6 +384,14 @@ impl InjectorApp {
                 let injector = DllProxyInjector::new();
                 let options = PreparationOptions::new(system_dll_name.to_string())
                     .with_backup(self.proxy_backup_original);
+
+                log::info!(
+                    "Preparing DLL proxy: payload={}, target_exe={}, system_dll={}, backup={}",
+                    dll_path.display(),
+                    target_exe.display(),
+                    system_dll_name,
+                    self.proxy_backup_original
+                );
 
                 match injector.prepare(target_exe, dll_path, &options) {
                     Ok(prep_result) => {
@@ -533,10 +558,12 @@ impl eframe::App for InjectorApp {
             ui::injection_panel::InjectionPanelAction::CleanupDllProxy => {
                 let Some(target_exe) = &self.proxy_target_exe else {
                     self.last_error = Some("No target executable selected for cleanup".into());
+                    log::error!("{}", self.last_error.as_ref().unwrap());
                     return;
                 };
 
                 let injector = DllProxyInjector::new();
+                log::info!("Starting DLL proxy cleanup for {}", target_exe.display());
                 match injector.cleanup(target_exe) {
                     Ok(()) => {
                         self.last_error = None;
